@@ -14,16 +14,29 @@ public class InMemoryConversationStartRepository implements ConversationStartRep
 
     private final Map<String, ConversationStart> executionsById = new HashMap<>();
     private final Map<String, String> activeIdsByUserRoom = new HashMap<>();
+    private final Map<String, String> activeIdsByRoomSession = new HashMap<>();
 
     @Override
     public synchronized void save(ConversationStart execution) {
         executionsById.put(execution.getExecutionId(), execution);
         activeIdsByUserRoom.put(key(execution.getUserId(), execution.getRoomId()), execution.getExecutionId());
+        activeIdsByRoomSession.put(execution.getRoomSessionId(), execution.getExecutionId());
     }
 
     @Override
     public synchronized Optional<ConversationStart> findById(String executionId) {
         return Optional.ofNullable(executionsById.get(executionId));
+    }
+
+    @Override
+    public synchronized Optional<ConversationStart> findActiveByRoomSessionId(String roomSessionId) {
+        String executionId = activeIdsByRoomSession.get(roomSessionId);
+        ConversationStart execution = executionsById.get(executionId);
+        if (execution == null || !execution.isActive()) {
+            activeIdsByRoomSession.remove(roomSessionId, executionId);
+            return Optional.empty();
+        }
+        return Optional.of(execution);
     }
 
     @Override

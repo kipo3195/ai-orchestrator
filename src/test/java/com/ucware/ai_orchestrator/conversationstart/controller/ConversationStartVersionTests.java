@@ -19,6 +19,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.ucware.ai_orchestrator.conversationstart.application.CancelConversationSuggestionUseCase;
 import com.ucware.ai_orchestrator.conversationstart.application.StartConversationSuggestionUseCase;
 import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStart;
+import com.ucware.ai_orchestrator.execution.domain.AiExecution;
+import com.ucware.ai_orchestrator.execution.domain.AiWorkflowType;
 
 @WebMvcTest(value = ConversationStartController.class, properties = "api.version=v2")
 class ConversationStartVersionTests {
@@ -35,14 +37,26 @@ class ConversationStartVersionTests {
     @Test
     void configuredVersionControlsRequestPathAndLocation() throws Exception {
         Instant now = Instant.parse("2026-01-01T00:00:00Z");
-        when(startUseCase.start(any(), any(), any())).thenReturn(
-                ConversationStart.create("session-1", "user-1", "room-1", "group", now, now));
+        AiExecution aiExecution = AiExecution.create(
+                "execution-1", AiWorkflowType.CONVERSATION_START, now, now);
+        aiExecution.schedule();
+        when(startUseCase.start(any(), any(), any(), any())).thenReturn(ConversationStart.create(
+                aiExecution, "room-session-1", "user-1", "room-1", "group"));
 
         mockMvc.perform(post("/api/v2/conversation-starts")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"userID\":\"user-1\",\"roomKey\":\"room-1\",\"chatType\":\"group\"}"))
+                        .content("{\"roomSessionId\":\"room-session-1\",\"userID\":\"user-1\"," +
+                                "\"roomKey\":\"room-1\",\"chatType\":\"group\"}"))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", "/api/v2/conversation-starts/session-1"))
-                .andExpect(jsonPath("$.sessionId").value("session-1"));
+                .andExpect(header().string(
+                        "Location", "/api/v2/conversation-starts/executions/execution-1"))
+                .andExpect(jsonPath("$.executionId").value("execution-1"))
+                .andExpect(jsonPath("$.workflowType").value("CONVERSATION_START"))
+                .andExpect(jsonPath("$.status").value("SCHEDULED"))
+                .andExpect(jsonPath("$.requestedAt").value("2026-01-01T00:00:00Z"))
+                .andExpect(jsonPath("$.scheduledFor").value("2026-01-01T00:00:00Z"))
+                .andExpect(jsonPath("$.data.roomSessionId").value("room-session-1"))
+                .andExpect(jsonPath("$.data.roomKey").value("room-1"))
+                .andExpect(jsonPath("$.data.chatType").value("group"));
     }
 }

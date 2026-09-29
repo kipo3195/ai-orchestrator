@@ -15,9 +15,11 @@ import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStartCont
 import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStartDelayPolicy;
 import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStartRepository;
 import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStartResult;
-import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStartStatus;
 import com.ucware.ai_orchestrator.conversationstart.domain.ConversationSuggestionKind;
 import com.ucware.ai_orchestrator.conversationstart.infrastructure.config.ConversationStartProperties;
+import com.ucware.ai_orchestrator.execution.domain.AiExecution;
+import com.ucware.ai_orchestrator.execution.domain.AiExecutionStatus;
+import com.ucware.ai_orchestrator.execution.domain.AiWorkflowType;
 
 @Service
 public class ConversationStartService
@@ -44,12 +46,21 @@ public class ConversationStartService
     }
 
     @Override
-    public synchronized ConversationStart start(String userId, String roomId, String chatType) {
+    public synchronized ConversationStart start(String roomSessionId, String userId, String roomId, String chatType) {
         if (!properties.enabled()) {
             throw new IllegalStateException("Conversation start is disabled");
         }
+        requireText(roomSessionId, "roomSessionId");
         requireText(userId, "userId");
         requireText(roomId, "roomId");
+
+        ConversationStart existingSession = repository.findActiveByRoomSessionId(roomSessionId).orElse(null);
+        if (existingSession != null) {
+            if (!userId.equals(existingSession.getUserId()) || !roomId.equals(existingSession.getRoomId())) {
+                throw new IllegalArgumentException("roomSessionId is already associated with another room presence");
+            }
+            return existingSession;
+        }
 
         repository.findActive(userId, roomId).ifPresent(previous -> {
             previous.cancel();
@@ -57,9 +68,11 @@ public class ConversationStartService
         });
 
         Instant enteredAt = Instant.now();
-        ConversationStart execution = ConversationStart.create(
-                UUID.randomUUID().toString(), userId, roomId, normalizeChatType(chatType),
+        AiExecution aiExecution = AiExecution.create(
+                UUID.randomUUID().toString(), AiWorkflowType.CONVERSATION_START,
                 enteredAt, enteredAt.plus(properties.triggerDelay()));
+        ConversationStart execution = ConversationStart.create(
+                aiExecution, roomSessionId, userId, roomId, normalizeChatType(chatType));
         execution.schedule();
         repository.save(execution);
 
@@ -87,12 +100,12 @@ public class ConversationStartService
         try {
             // 최근 대화 기반 추천은 타입만 정의하고 현재는 TRENDING을 실행합니다.
             ConversationStartContext context = new ConversationStartContext(
-                    executionId, execution.getUserId(), execution.getRoomId(),
+                    executionId, execution.getRoomSessionId(), execution.getUserId(), execution.getRoomId(),
                     execution.getEnteredAt(), ConversationSuggestionKind.TRENDING, List.of());
             ConversationStartResult result = aiPort.generateSuggestion(context);
 
             synchronized (this) {
-                if (execution.getStatus() != ConversationStartStatus.EXECUTING
+                if (execution.getStatus() != AiExecutionStatus.EXECUTING
                         || !isCurrentExecution(execution)) {
                     return;
                 }
@@ -109,22 +122,27 @@ public class ConversationStartService
     }
 
     private boolean isCurrentExecution(ConversationStart execution) {
-        return repository.findActive(execution.getUserId(), execution.getRoomId())
+        boolean currentForUserRoom = repository.findActive(execution.getUserId(), execution.getRoomId())
                 .map(current -> execution.getExecutionId().equals(current.getExecutionId()))
                 .orElse(false);
+        boolean currentForRoomSession = repository.findActiveByRoomSessionId(execution.getRoomSessionId())
+                .map(current -> execution.getExecutionId().equals(current.getExecutionId()))
+                .orElse(false);
+        return currentForUserRoom && currentForRoomSession;
     }
 
     @Override
-    public synchronized boolean cancel(String userId, String roomId, String executionId) {
+    public synchronized boolean cancel(String roomSessionId, String userId, String roomId) {
+        requireText(roomSessionId, "roomSessionId");
         requireText(userId, "userId");
         requireText(roomId, "roomId");
 
-        ConversationStart execution = executionId == null || executionId.isBlank()
-                ? repository.findActive(userId, roomId).orElse(null)
-                : repository.findById(executionId).orElse(null);
+        ConversationStart execution = repository.findActiveByRoomSessionId(roomSessionId).orElse(null);
 
         if (execution == null || !userId.equals(execution.getUserId())
-                || !roomId.equals(execution.getRoomId()) || !execution.cancel()) {
+                || !roomId.equals(execution.getRoomId())
+                || !roomSessionId.equals(execution.getRoomSessionId())
+                || !execution.cancel()) {
             return false;
         }
         scheduler.cancel(execution.getExecutionId());

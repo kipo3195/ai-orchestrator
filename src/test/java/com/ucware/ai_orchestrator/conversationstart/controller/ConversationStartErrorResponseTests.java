@@ -1,6 +1,7 @@
 package com.ucware.ai_orchestrator.conversationstart.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -36,7 +37,8 @@ class ConversationStartErrorResponseTests {
     void invalidRequestUsesProblemDetails() throws Exception {
         mockMvc.perform(post("/api/v1/conversation-starts")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"userID\":\"\",\"roomKey\":\"room-1\"}"))
+                        .content("{\"roomSessionId\":\"room-session-1\",\"userID\":\"\"," +
+                                "\"roomKey\":\"room-1\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("application/problem+json")))
                 .andExpect(jsonPath("$.type").value("about:blank"))
@@ -58,8 +60,32 @@ class ConversationStartErrorResponseTests {
     }
 
     @Test
+    void missingRoomSessionIdUsesProblemDetails() throws Exception {
+        mockMvc.perform(post("/api/v1/conversation-starts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userID\":\"user-1\",\"roomKey\":\"room-1\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("application/problem+json")))
+                .andExpect(jsonPath("$.title").value("Bad Request"))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.detail").value("roomSessionId: must not be blank"));
+    }
+
+    @Test
+    void leaveRoomCancelsByRoomSessionId() throws Exception {
+        when(cancelUseCase.cancel("room-session-1", "user-1", "room-1")).thenReturn(true);
+
+        mockMvc.perform(delete("/api/v1/conversation-starts/room-session-1")
+                        .param("userID", "user-1")
+                        .param("roomKey", "room-1"))
+                .andExpect(status().isNoContent());
+
+        verify(cancelUseCase).cancel("room-session-1", "user-1", "room-1");
+    }
+
+    @Test
     void missingActiveConversationUsesNotFoundProblem() throws Exception {
-        mockMvc.perform(delete("/api/v1/conversation-starts/session-1")
+        mockMvc.perform(delete("/api/v1/conversation-starts/room-session-1")
                         .param("userID", "user-1")
                         .param("roomKey", "room-1"))
                 .andExpect(status().isNotFound())
@@ -72,11 +98,13 @@ class ConversationStartErrorResponseTests {
 
     @Test
     void unavailableConversationDoesNotExposeExceptionMessage() throws Exception {
-        when(startUseCase.start(any(), any(), any())).thenThrow(new IllegalStateException("internal state"));
+        when(startUseCase.start(any(), any(), any(), any()))
+                .thenThrow(new IllegalStateException("internal state"));
 
         mockMvc.perform(post("/api/v1/conversation-starts")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"userID\":\"user-1\",\"roomKey\":\"room-1\"}"))
+                        .content("{\"roomSessionId\":\"room-session-1\",\"userID\":\"user-1\"," +
+                                "\"roomKey\":\"room-1\"}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("application/problem+json")))
                 .andExpect(jsonPath("$.type").value("about:blank"))

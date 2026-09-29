@@ -10,6 +10,8 @@ public interface ConversationStartRepository {
 
     Optional<ConversationStart> findById(String executionId);
 
+    Optional<ConversationStart> findActiveByRoomSessionId(String roomSessionId);
+
     Optional<ConversationStart> findActive(
             String userId,
             String roomId

@@ -1,7 +1,6 @@
 package com.ucware.ai_orchestrator.conversationstart.controller;
 
 import java.net.URI;
-import java.time.Instant;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -20,7 +19,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ucware.ai_orchestrator.conversationstart.application.CancelConversationSuggestionUseCase;
 import com.ucware.ai_orchestrator.conversationstart.application.StartConversationSuggestionUseCase;
 import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStart;
-import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStartStatus;
+import com.ucware.ai_orchestrator.execution.application.AiExecutionResponse;
 
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
@@ -38,30 +37,32 @@ public class ConversationStartController {
     }
 
     @PostMapping
-    public ResponseEntity<ConversationStartResponse> enterRoom(@Valid @RequestBody EnterRoomRequest request,
-                                                               HttpServletRequest httpRequest) {
-        ConversationStart execution = startUseCase.start(request.userID(), request.roomKey(), request.chatType());
-        URI location = URI.create(httpRequest.getRequestURI() + "/" + execution.getExecutionId());
-        ConversationStartResponse body = new ConversationStartResponse(
-                execution.getExecutionId(), execution.getRoomId(), execution.getChatType(),
-                execution.getStatus(), execution.getEnteredAt(), execution.getExecuteAt());
+    public ResponseEntity<AiExecutionResponse<ConversationStartResponse>> enterRoom(
+            @Valid @RequestBody EnterRoomRequest request,
+            HttpServletRequest httpRequest) {
+        ConversationStart execution = startUseCase.start(
+                request.roomSessionId(), request.userID(), request.roomKey(), request.chatType());
+        URI location = URI.create(httpRequest.getRequestURI() + "/executions/" + execution.getExecutionId());
+        ConversationStartResponse featureResponse = new ConversationStartResponse(
+                execution.getRoomSessionId(), execution.getRoomId(), execution.getChatType());
+        AiExecutionResponse<ConversationStartResponse> body =
+                AiExecutionResponse.from(execution.getExecution(), featureResponse);
         return ResponseEntity.created(location).body(body);
     }
 
-    @DeleteMapping("/{sessionId}")
-    public ResponseEntity<Void> leaveRoom(@PathVariable String sessionId,
+    @DeleteMapping("/{roomSessionId}")
+    public ResponseEntity<Void> leaveRoom(@PathVariable String roomSessionId,
                                           @RequestParam String userID,
                                           @RequestParam String roomKey) {
-        if (!cancelUseCase.cancel(userID, roomKey, sessionId)) {
+        if (!cancelUseCase.cancel(roomSessionId, userID, roomKey)) {
             throw new ResponseStatusException(NOT_FOUND, "Active conversation start not found");
         }
         return ResponseEntity.noContent().build();
     }
 
-    public record EnterRoomRequest(@JsonProperty("userID") @NotBlank String userID,
+    public record EnterRoomRequest(@NotBlank String roomSessionId,
+                                   @JsonProperty("userID") @NotBlank String userID,
                                    @NotBlank String roomKey, String chatType) { }
 
-    public record ConversationStartResponse(String sessionId, String roomKey, String chatType,
-                                            ConversationStartStatus status, Instant enteredAt,
-                                            Instant suggestionTriggerAt) { }
+    public record ConversationStartResponse(String roomSessionId, String roomKey, String chatType) { }
 }

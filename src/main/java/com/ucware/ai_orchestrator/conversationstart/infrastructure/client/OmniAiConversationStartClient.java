@@ -44,7 +44,7 @@ public class OmniAiConversationStartClient implements ConversationStartAiPort {
         }
 
         OmniAiRequest requestBody = new OmniAiRequest(
-                context.sessionId(), context.userId(), context.roomId(),
+                context.executionId(), context.userId(), context.roomId(),
                 context.suggestionKind().name(), List.of(), new RequestOptions(5, 100, "ko"));
 
         try {
@@ -61,10 +61,10 @@ public class OmniAiConversationStartClient implements ConversationStartAiPort {
             }
 
             OmniAiResponse parsed = objectMapper.readValue(response.body(), OmniAiResponse.class);
-            if (parsed == null || !context.sessionId().equals(parsed.sessionId())) {
-                throw new IllegalStateException("Omni AI response session does not match request");
+            if (parsed == null || !context.executionId().equals(parsed.executionId())) {
+                throw new IllegalStateException("Omni AI response does not match execution");
             }
-            return new ConversationStartResult(parsed.sessionId(), parsed.suggestions());
+            return new ConversationStartResult(parsed.executionId(), parsed.suggestions());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Omni AI request interrupted", e);
@@ -73,7 +73,7 @@ public class OmniAiConversationStartClient implements ConversationStartAiPort {
         }
     }
 
-    private record OmniAiRequest(@JsonProperty("session_id") String sessionId,
+    private record OmniAiRequest(@JsonProperty("session_id") String executionId,
                                  @JsonProperty("user_id") String userId,
                                  @JsonProperty("room_id") String roomId,
                                  @JsonProperty("suggestion_type") String suggestionType,
@@ -83,6 +83,6 @@ public class OmniAiConversationStartClient implements ConversationStartAiPort {
                                   @JsonProperty("max_length") int maxLength,
                                   String language) { }
 
-    private record OmniAiResponse(@JsonProperty("session_id") String sessionId,
+    private record OmniAiResponse(@JsonProperty("session_id") String executionId,
                                   List<SuggestionItem> suggestions) { }
 }

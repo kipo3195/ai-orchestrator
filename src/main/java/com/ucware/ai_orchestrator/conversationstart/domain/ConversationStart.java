@@ -3,88 +3,71 @@ package com.ucware.ai_orchestrator.conversationstart.domain;
 import java.time.Instant;
 import java.util.Objects;
 
+import com.ucware.ai_orchestrator.execution.domain.AiExecution;
+import com.ucware.ai_orchestrator.execution.domain.AiExecutionStatus;
+
 public class ConversationStart {
 
-    private final String executionId;
+    private final AiExecution execution;
+    private final String roomSessionId;
     private final String userId;
     private final String roomId;
     private final String chatType;
-    private final Instant enteredAt;
-    private final Instant executeAt;
-    private volatile ConversationStartStatus status;
     private volatile ConversationStartResult result;
 
-    private ConversationStart(String executionId, String userId, String roomId, String chatType,
-                              Instant enteredAt, Instant executeAt) {
-        this.executionId = Objects.requireNonNull(executionId);
+    private ConversationStart(AiExecution execution, String roomSessionId,
+                              String userId, String roomId, String chatType) {
+        this.execution = Objects.requireNonNull(execution);
+        this.roomSessionId = Objects.requireNonNull(roomSessionId);
         this.userId = Objects.requireNonNull(userId);
         this.roomId = Objects.requireNonNull(roomId);
         this.chatType = Objects.requireNonNull(chatType);
-        this.enteredAt = Objects.requireNonNull(enteredAt);
-        this.executeAt = Objects.requireNonNull(executeAt);
-        this.status = ConversationStartStatus.CREATED;
     }
 
-    public static ConversationStart create(String executionId, String userId, String roomId,
-                                           String chatType, Instant enteredAt, Instant executeAt) {
-        return new ConversationStart(executionId, userId, roomId, chatType, enteredAt, executeAt);
+    public static ConversationStart create(AiExecution execution, String roomSessionId,
+                                           String userId, String roomId, String chatType) {
+        return new ConversationStart(execution, roomSessionId, userId, roomId, chatType);
     }
 
     public synchronized void schedule() {
-        if (status != ConversationStartStatus.CREATED) {
-            throw new IllegalStateException("Only created executions can be scheduled");
-        }
-        status = ConversationStartStatus.SCHEDULED;
+        execution.schedule();
     }
 
     public synchronized void startExecution() {
-        if (status != ConversationStartStatus.SCHEDULED) {
-            throw new IllegalStateException("Only scheduled executions can start");
-        }
-        status = ConversationStartStatus.EXECUTING;
+        execution.start();
     }
 
     public synchronized void complete(ConversationStartResult result) {
-        if (status != ConversationStartStatus.EXECUTING) {
-            throw new IllegalStateException("Only executing executions can complete");
+        if (result == null || !getExecutionId().equals(result.executionId())) {
+            throw new IllegalArgumentException("AI result does not match execution");
         }
-        if (result == null || !executionId.equals(result.sessionId())) {
-            throw new IllegalArgumentException("AI result session does not match execution");
-        }
+        execution.complete();
         this.result = result;
-        status = ConversationStartStatus.COMPLETED;
     }
 
     public synchronized boolean cancel() {
-        if (!isActive()) {
-            return false;
-        }
-        status = ConversationStartStatus.CANCELLED;
-        return true;
+        return execution.cancel();
     }
 
     public synchronized void fail() {
-        if (status == ConversationStartStatus.SCHEDULED || status == ConversationStartStatus.EXECUTING) {
-            status = ConversationStartStatus.FAILED;
-        }
+        execution.fail();
     }
 
     public boolean isExecutable() {
-        return status == ConversationStartStatus.SCHEDULED;
+        return execution.isScheduled();
     }
 
     public boolean isActive() {
-        return status == ConversationStartStatus.CREATED
-                || status == ConversationStartStatus.SCHEDULED
-                || status == ConversationStartStatus.EXECUTING;
+        return execution.isActive();
     }
 
-    public String getExecutionId() { return executionId; }
+    public AiExecution getExecution() { return execution; }
+    public String getExecutionId() { return execution.getExecutionId(); }
+    public String getRoomSessionId() { return roomSessionId; }
     public String getUserId() { return userId; }
     public String getRoomId() { return roomId; }
     public String getChatType() { return chatType; }
-    public Instant getEnteredAt() { return enteredAt; }
-    public Instant getExecuteAt() { return executeAt; }
-    public ConversationStartStatus getStatus() { return status; }
+    public Instant getEnteredAt() { return execution.getRequestedAt(); }
+    public AiExecutionStatus getStatus() { return execution.getStatus(); }
     public ConversationStartResult getResult() { return result; }
 }
