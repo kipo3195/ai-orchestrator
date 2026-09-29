@@ -1,0 +1,20 @@
+# 빌드 
+./gradlew clean test bootJar
+
+# 디렉터리 확인 
+ls -lh build/libs
+
+# 배포용 app.jar 생성
+cp build/libs/ai-orchestrator-0.0.1-SNAPSHOT.jar deploy/app.jar
+
+# 이미지 빌드 
+docker compose build
+
+# 도커 컴포즈 실행 
+docker compose up -d
+
+# 어플리케이션 로그 확인 
+docker compose logs --tail=200 ai-orchestrator
+
+# 서비스 통신 점검 (로컬)
+curl http://localhost:8080/actuator/health

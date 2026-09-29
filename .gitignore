@@ -38,3 +38,9 @@ out/
 
 ### codex ####
 AGENTS.md
+
+### deploy ###
+.env
+deploy/app.jar
+deploy/.env.example
+.DS_Store
