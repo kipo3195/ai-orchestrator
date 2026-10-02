@@ -312,6 +312,7 @@ Event Publish / Subscribe 또는 사용자에게 결과를 전달하기 위한 A
 
 외부 기술과 직접 연결되는 기능은 가능하면 Port를 통해 분리한다.
 
+## Scheduler 구조 예시 
 ```text
 ConversationStartService
         │
@@ -330,6 +331,32 @@ ConversationStartService
         └── ConversationSuggestionSender
                 ↑
             NatsConversationSuggestionSender
+```
+
+
+## Redis 구조 예시 
+```text
+application
+    │
+    ▼
+ConversationStartService
+    │
+    ▼
+domain
+ConversationStartRepository        ← Port
+    ▲
+    │ implements
+    │
+RedisConversationStartRepository   ← Adapter
+    │
+    ▼
+RedisTemplate
+    │
+    ▼
+RedisConnectionFactory
+    │
+    ▼
+Redis
 ```
 
 Port는 "무엇을 해야 하는가"를 정의하고,
