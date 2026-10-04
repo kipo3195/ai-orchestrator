@@ -4,12 +4,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
 import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStart;
 import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStartRepository;
 
 @Repository
+@Primary
 public class InMemoryConversationStartRepository implements ConversationStartRepository {
 
     private final Map<String, ConversationStart> executionsById = new HashMap<>();

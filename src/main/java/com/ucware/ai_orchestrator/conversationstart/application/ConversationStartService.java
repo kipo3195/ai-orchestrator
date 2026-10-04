@@ -20,6 +20,11 @@ import com.ucware.ai_orchestrator.conversationstart.infrastructure.config.Conver
 import com.ucware.ai_orchestrator.execution.domain.AiExecution;
 import com.ucware.ai_orchestrator.execution.domain.AiExecutionStatus;
 import com.ucware.ai_orchestrator.execution.domain.AiWorkflowType;
+import com.ucware.ai_orchestrator.result.application.AiResultRouter;
+import com.ucware.ai_orchestrator.result.application.RoutingRefFactory;
+import com.ucware.ai_orchestrator.result.domain.ResultEvent;
+import com.ucware.ai_orchestrator.result.domain.RoutingRef;
+import com.ucware.ai_orchestrator.result.domain.RoutingScope;
 
 @Service
 public class ConversationStartService
@@ -32,25 +37,32 @@ public class ConversationStartService
     private final ConversationStartDelayPolicy delayPolicy;
     private final ConversationStartProperties properties;
     private final ConversationStartAiPort aiPort;
+    private final AiResultRouter resultRouter;
+    private final RoutingRefFactory routingRefFactory;
 
     public ConversationStartService(ConversationStartRepository repository,
                                     ConversationStartScheduler scheduler,
                                     ConversationStartDelayPolicy delayPolicy,
                                     ConversationStartProperties properties,
-                                    ConversationStartAiPort aiPort) {
+                                    ConversationStartAiPort aiPort,
+                                    AiResultRouter resultRouter,
+                                    RoutingRefFactory routingRefFactory) {
         this.repository = repository;
         this.scheduler = scheduler;
         this.delayPolicy = delayPolicy;
         this.properties = properties;
         this.aiPort = aiPort;
+        this.resultRouter = resultRouter;
+        this.routingRefFactory = routingRefFactory;
     }
 
     @Override
-    public synchronized ConversationStart start(String roomSessionId, String userId, String roomId, String chatType) {
+    public synchronized ConversationStart start(String roomSessionId, String clientSessionId, String userId, String roomId, String chatType) {
         if (!properties.enabled()) {
             throw new IllegalStateException("Conversation start is disabled");
         }
         requireText(roomSessionId, "roomSessionId");
+        requireText(clientSessionId, "clientSessionId");
         requireText(userId, "userId");
         requireText(roomId, "roomId");
 
@@ -68,11 +80,15 @@ public class ConversationStartService
         });
 
         Instant enteredAt = Instant.now();
+        RoutingRef routingRef = routingRefFactory.forClientSession(
+                userId,
+                clientSessionId,
+                new RoutingScope("ROOM_SESSION", roomSessionId));
         AiExecution aiExecution = AiExecution.create(
-                UUID.randomUUID().toString(), AiWorkflowType.CONVERSATION_START,
+                UUID.randomUUID().toString(), AiWorkflowType.CONVERSATION_START, routingRef,
                 enteredAt, enteredAt.plus(properties.triggerDelay()));
         ConversationStart execution = ConversationStart.create(
-                aiExecution, roomSessionId, userId, roomId, normalizeChatType(chatType));
+                aiExecution,  roomSessionId, userId, roomId, normalizeChatType(chatType));
         execution.schedule();
         repository.save(execution);
 
@@ -113,6 +129,17 @@ public class ConversationStartService
             }
             logger.info("Conversation start AI completed. executionId={}, suggestionCount={}",
                     executionId, result.suggestions().size());
+
+            try {
+                resultRouter.route(execution.getExecution(), new ResultEvent(
+                        executionId,
+                        UUID.randomUUID().toString(),
+                        "CONVERSATION_START_COMPLETED",
+                        result));
+            } catch (RuntimeException deliveryError) {
+                logger.error("Conversation start result delivery failed. executionId={}",
+                        executionId, deliveryError);
+            }
         } catch (Exception e) {
             synchronized (this) {
                 execution.fail();

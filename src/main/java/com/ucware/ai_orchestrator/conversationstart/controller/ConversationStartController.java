@@ -18,6 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ucware.ai_orchestrator.conversationstart.application.CancelConversationSuggestionUseCase;
 import com.ucware.ai_orchestrator.conversationstart.application.StartConversationSuggestionUseCase;
+//import com.ucware.ai_orchestrator.conversationstart.controller.ConversationStartController.EnterRoomRequest.ConversationStartResponse;
 import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStart;
 import com.ucware.ai_orchestrator.execution.application.AiExecutionResponse;
 
@@ -41,7 +42,7 @@ public class ConversationStartController {
             @Valid @RequestBody EnterRoomRequest request,
             HttpServletRequest httpRequest) {
         ConversationStart execution = startUseCase.start(
-                request.roomSessionId(), request.userID(), request.roomKey(), request.chatType());
+                request.roomSessionId(), request.clientSessionId ,request.userID(), request.roomKey(), request.chatType());
         URI location = URI.create(httpRequest.getRequestURI() + "/executions/" + execution.getExecutionId());
         ConversationStartResponse featureResponse = new ConversationStartResponse(
                 execution.getRoomSessionId(), execution.getRoomId(), execution.getChatType());
@@ -60,7 +61,7 @@ public class ConversationStartController {
         return ResponseEntity.noContent().build();
     }
 
-    public record EnterRoomRequest(@NotBlank String roomSessionId,
+    public record EnterRoomRequest(@NotBlank String roomSessionId, @JsonProperty("clientSessionId") @NotBlank String clientSessionId,
                                    @JsonProperty("userID") @NotBlank String userID,
                                    @NotBlank String roomKey, String chatType) { }
 

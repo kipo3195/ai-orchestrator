@@ -37,7 +37,8 @@ class ConversationStartErrorResponseTests {
     void invalidRequestUsesProblemDetails() throws Exception {
         mockMvc.perform(post("/api/v1/conversation-starts")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"roomSessionId\":\"room-session-1\",\"userID\":\"\"," +
+                        .content("{\"roomSessionId\":\"room-session-1\"," +
+                                "\"clientSessionId\":\"client-session-1\",\"userID\":\"\"," +
                                 "\"roomKey\":\"room-1\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("application/problem+json")))
@@ -63,7 +64,8 @@ class ConversationStartErrorResponseTests {
     void missingRoomSessionIdUsesProblemDetails() throws Exception {
         mockMvc.perform(post("/api/v1/conversation-starts")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"userID\":\"user-1\",\"roomKey\":\"room-1\"}"))
+                        .content("{\"clientSessionId\":\"client-session-1\"," +
+                                "\"userID\":\"user-1\",\"roomKey\":\"room-1\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("application/problem+json")))
                 .andExpect(jsonPath("$.title").value("Bad Request"))
@@ -98,12 +100,13 @@ class ConversationStartErrorResponseTests {
 
     @Test
     void unavailableConversationDoesNotExposeExceptionMessage() throws Exception {
-        when(startUseCase.start(any(), any(), any(), any()))
+        when(startUseCase.start(any(), any(), any(), any(), any()))
                 .thenThrow(new IllegalStateException("internal state"));
 
         mockMvc.perform(post("/api/v1/conversation-starts")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"roomSessionId\":\"room-session-1\",\"userID\":\"user-1\"," +
+                        .content("{\"roomSessionId\":\"room-session-1\"," +
+                                "\"clientSessionId\":\"client-session-1\",\"userID\":\"user-1\"," +
                                 "\"roomKey\":\"room-1\"}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("application/problem+json")))

@@ -21,6 +21,7 @@ import com.ucware.ai_orchestrator.conversationstart.application.StartConversatio
 import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStart;
 import com.ucware.ai_orchestrator.execution.domain.AiExecution;
 import com.ucware.ai_orchestrator.execution.domain.AiWorkflowType;
+import com.ucware.ai_orchestrator.result.domain.RoutingRef;
 
 @WebMvcTest(value = ConversationStartController.class, properties = "api.version=v2")
 class ConversationStartVersionTests {
@@ -38,14 +39,17 @@ class ConversationStartVersionTests {
     void configuredVersionControlsRequestPathAndLocation() throws Exception {
         Instant now = Instant.parse("2026-01-01T00:00:00Z");
         AiExecution aiExecution = AiExecution.create(
-                "execution-1", AiWorkflowType.CONVERSATION_START, now, now);
+                "execution-1", AiWorkflowType.CONVERSATION_START,
+                RoutingRef.forClientSession("default", "user-1", "client-session-1", null),
+                now, now);
         aiExecution.schedule();
-        when(startUseCase.start(any(), any(), any(), any())).thenReturn(ConversationStart.create(
+        when(startUseCase.start(any(), any(), any(), any(), any())).thenReturn(ConversationStart.create(
                 aiExecution, "room-session-1", "user-1", "room-1", "group"));
 
         mockMvc.perform(post("/api/v2/conversation-starts")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"roomSessionId\":\"room-session-1\",\"userID\":\"user-1\"," +
+                        .content("{\"roomSessionId\":\"room-session-1\"," +
+                                "\"clientSessionId\":\"client-session-1\",\"userID\":\"user-1\"," +
                                 "\"roomKey\":\"room-1\",\"chatType\":\"group\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(header().string(

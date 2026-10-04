@@ -3,26 +3,30 @@ package com.ucware.ai_orchestrator.execution.domain;
 import java.time.Instant;
 import java.util.Objects;
 
+import com.ucware.ai_orchestrator.result.domain.RoutingRef;
+
 public class AiExecution {
 
     private final String executionId;
+    private final RoutingRef routingRef;
     private final AiWorkflowType workflowType;
     private final Instant requestedAt;
     private final Instant scheduledFor;
     private volatile AiExecutionStatus status;
 
-    private AiExecution(String executionId, AiWorkflowType workflowType,
+    private AiExecution(String executionId, RoutingRef routingRef, AiWorkflowType workflowType,
                         Instant requestedAt, Instant scheduledFor) {
         this.executionId = Objects.requireNonNull(executionId);
+        this.routingRef = Objects.requireNonNull(routingRef);
         this.workflowType = Objects.requireNonNull(workflowType);
         this.requestedAt = Objects.requireNonNull(requestedAt);
         this.scheduledFor = scheduledFor;
         this.status = AiExecutionStatus.CREATED;
     }
 
-    public static AiExecution create(String executionId, AiWorkflowType workflowType,
+    public static AiExecution create(String executionId, AiWorkflowType workflowType, RoutingRef routingRef,
                                      Instant requestedAt, Instant scheduledFor) {
-        return new AiExecution(executionId, workflowType, requestedAt, scheduledFor);
+        return new AiExecution(executionId, routingRef, workflowType, requestedAt, scheduledFor);
     }
 
     public synchronized void schedule() {
@@ -71,6 +75,8 @@ public class AiExecution {
     }
 
     public String getExecutionId() { return executionId; }
+    public String getClientSessionId() { return routingRef.clientSessionId(); }
+    public RoutingRef getRoutingRef() { return routingRef; }
     public AiWorkflowType getWorkflowType() { return workflowType; }
     public Instant getRequestedAt() { return requestedAt; }
     public Instant getScheduledFor() { return scheduledFor; }

@@ -7,6 +7,8 @@ import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
 
+import com.ucware.ai_orchestrator.result.domain.RoutingRef;
+
 class AiExecutionTests {
 
     @Test
@@ -14,7 +16,8 @@ class AiExecutionTests {
         Instant requestedAt = Instant.parse("2026-01-01T00:00:00Z");
         Instant scheduledFor = Instant.parse("2026-01-01T00:00:10Z");
         AiExecution execution = AiExecution.create(
-                "execution-1", AiWorkflowType.CONVERSATION_START, requestedAt, scheduledFor);
+                "execution-1", AiWorkflowType.CONVERSATION_START, routingRef(),
+                requestedAt, scheduledFor);
 
         assertThat(execution.getStatus()).isEqualTo(AiExecutionStatus.CREATED);
 
@@ -31,10 +34,15 @@ class AiExecutionTests {
     void rejectsInvalidStateTransition() {
         Instant now = Instant.parse("2026-01-01T00:00:00Z");
         AiExecution execution = AiExecution.create(
-                "execution-1", AiWorkflowType.CONVERSATION_START, now, now);
+                "execution-1", AiWorkflowType.CONVERSATION_START, routingRef(), now, now);
 
         assertThatThrownBy(execution::start)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Only scheduled executions can start");
+    }
+
+    private static RoutingRef routingRef() {
+        return RoutingRef.forClientSession(
+                "default", "user-1", "client-session-1", null);
     }
 }
