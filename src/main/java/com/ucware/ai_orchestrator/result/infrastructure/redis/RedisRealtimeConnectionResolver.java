@@ -1,13 +1,11 @@
 package com.ucware.ai_orchestrator.result.infrastructure.redis;
 
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ucware.ai_orchestrator.result.application.ResultRoutingException;
 import com.ucware.ai_orchestrator.result.application.port.RealtimeConnectionResolver;
 import com.ucware.ai_orchestrator.result.domain.DeliveryTarget;
@@ -23,12 +21,9 @@ public class RedisRealtimeConnectionResolver implements RealtimeConnectionResolv
     private static final String CONNECTION_KEY = "rt:connection:%s:%s";
 
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
 
-    public RedisRealtimeConnectionResolver(StringRedisTemplate redisTemplate,
-                                           ObjectMapper objectMapper) {
+    public RedisRealtimeConnectionResolver(StringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -47,12 +42,15 @@ public class RedisRealtimeConnectionResolver implements RealtimeConnectionResolv
             }
 
             String connectionKey = CONNECTION_KEY.formatted(routingRef.tenantId(), connectionId);
-            String connectionJson = redisTemplate.opsForValue().get(connectionKey);
-            if (!hasText(connectionJson)) {
+            Map<Object, Object> connectionValues = redisTemplate.opsForHash().entries(connectionKey);
+            if (connectionValues.isEmpty()) {
                 continue;
             }
 
-            RealtimeConnectionRecord connection = readConnection(connectionJson, connectionKey);
+            RealtimeConnectionRecord connection = new RealtimeConnectionRecord(
+                    stringValue(connectionValues.get("userId")),
+                    stringValue(connectionValues.get("clientSessionId")),
+                    stringValue(connectionValues.get("ownerInstanceId")));
             String confirmedCurrentConnectionId = redisTemplate.opsForValue().get(currentKey);
             if (!connectionId.equals(confirmedCurrentConnectionId)) {
                 continue;
@@ -69,19 +67,14 @@ public class RedisRealtimeConnectionResolver implements RealtimeConnectionResolv
         return Optional.empty();
     }
 
-    private RealtimeConnectionRecord readConnection(String value, String key) {
-        try {
-            return objectMapper.readValue(value, RealtimeConnectionRecord.class);
-        } catch (JsonProcessingException e) {
-            throw new ResultRoutingException("Invalid realtime connection record at " + key, e);
-        }
+    private static String stringValue(Object value) {
+        return value instanceof String string ? string : null;
     }
 
     private static boolean hasText(String value) {
         return value != null && !value.isBlank();
     }
 
-    @JsonIgnoreProperties(ignoreUnknown = true)
     private record RealtimeConnectionRecord(
             String userId,
             String clientSessionId,

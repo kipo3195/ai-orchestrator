@@ -4,11 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
+import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ucware.ai_orchestrator.result.domain.RoutingRef;
 
 class RedisRealtimeConnectionResolverTests {
@@ -18,14 +20,19 @@ class RedisRealtimeConnectionResolverTests {
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
         @SuppressWarnings("unchecked")
         ValueOperations<String, String> values = mock(ValueOperations.class);
+        @SuppressWarnings("unchecked")
+        HashOperations<String, Object, Object> hashes = mock(HashOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(values);
+        when(redisTemplate.opsForHash()).thenReturn(hashes);
         when(values.get("rt:client-session-current:default:user-1:client-session-1"))
                 .thenReturn("connection-1");
-        when(values.get("rt:connection:default:connection-1"))
-                .thenReturn("{\"userId\":\"user-1\",\"clientSessionId\":\"client-session-1\"," +
-                        "\"ownerInstanceId\":\"realtime-2\",\"lastSeenAt\":\"ignored\"}");
-        RedisRealtimeConnectionResolver resolver = new RedisRealtimeConnectionResolver(
-                redisTemplate, new ObjectMapper());
+        when(hashes.entries("rt:connection:default:connection-1"))
+                .thenReturn(Map.of(
+                        "userId", "user-1",
+                        "clientSessionId", "client-session-1",
+                        "ownerInstanceId", "realtime-2",
+                        "lastSeenAt", "ignored"));
+        RedisRealtimeConnectionResolver resolver = new RedisRealtimeConnectionResolver(redisTemplate);
 
         assertThat(resolver.resolve(RoutingRef.forClientSession(
                 "default", "user-1", "client-session-1", null)))
@@ -40,14 +47,18 @@ class RedisRealtimeConnectionResolverTests {
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
         @SuppressWarnings("unchecked")
         ValueOperations<String, String> values = mock(ValueOperations.class);
+        @SuppressWarnings("unchecked")
+        HashOperations<String, Object, Object> hashes = mock(HashOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(values);
+        when(redisTemplate.opsForHash()).thenReturn(hashes);
         when(values.get("rt:client-session-current:default:user-1:client-session-1"))
                 .thenReturn("connection-1");
-        when(values.get("rt:connection:default:connection-1"))
-                .thenReturn("{\"userId\":\"user-1\",\"clientSessionId\":\"other-session\"," +
-                        "\"ownerInstanceId\":\"realtime-2\"}");
-        RedisRealtimeConnectionResolver resolver = new RedisRealtimeConnectionResolver(
-                redisTemplate, new ObjectMapper());
+        when(hashes.entries("rt:connection:default:connection-1"))
+                .thenReturn(Map.of(
+                        "userId", "user-1",
+                        "clientSessionId", "other-session",
+                        "ownerInstanceId", "realtime-2"));
+        RedisRealtimeConnectionResolver resolver = new RedisRealtimeConnectionResolver(redisTemplate);
 
         assertThat(resolver.resolve(RoutingRef.forClientSession(
                 "default", "user-1", "client-session-1", null))).isEmpty();
@@ -58,18 +69,24 @@ class RedisRealtimeConnectionResolverTests {
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
         @SuppressWarnings("unchecked")
         ValueOperations<String, String> values = mock(ValueOperations.class);
+        @SuppressWarnings("unchecked")
+        HashOperations<String, Object, Object> hashes = mock(HashOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(values);
+        when(redisTemplate.opsForHash()).thenReturn(hashes);
         String currentKey = "rt:client-session-current:default:user-1:client-session-1";
         when(values.get(currentKey))
                 .thenReturn("connection-1", "connection-2", "connection-2", "connection-2");
-        when(values.get("rt:connection:default:connection-1"))
-                .thenReturn("{\"userId\":\"user-1\",\"clientSessionId\":\"client-session-1\"," +
-                        "\"ownerInstanceId\":\"realtime-1\"}");
-        when(values.get("rt:connection:default:connection-2"))
-                .thenReturn("{\"userId\":\"user-1\",\"clientSessionId\":\"client-session-1\"," +
-                        "\"ownerInstanceId\":\"realtime-2\"}");
-        RedisRealtimeConnectionResolver resolver = new RedisRealtimeConnectionResolver(
-                redisTemplate, new ObjectMapper());
+        when(hashes.entries("rt:connection:default:connection-1"))
+                .thenReturn(Map.of(
+                        "userId", "user-1",
+                        "clientSessionId", "client-session-1",
+                        "ownerInstanceId", "realtime-1"));
+        when(hashes.entries("rt:connection:default:connection-2"))
+                .thenReturn(Map.of(
+                        "userId", "user-1",
+                        "clientSessionId", "client-session-1",
+                        "ownerInstanceId", "realtime-2"));
+        RedisRealtimeConnectionResolver resolver = new RedisRealtimeConnectionResolver(redisTemplate);
 
         assertThat(resolver.resolve(RoutingRef.forClientSession(
                 "default", "user-1", "client-session-1", null)))

@@ -15,6 +15,11 @@ services:
     environment:
       TZ: Asia/Seoul
       OMNI_AI_BASE_URL: "${OMNI_AI_BASE_URL:-http://host.docker.internal:8000}"
+      SPRING_DATA_REDIS_HOST: "${REDIS_HOST}"
+      SPRING_DATA_REDIS_PORT: "${REDIS_PORT:-6379}"
+      SPRING_DATA_REDIS_DATABASE: "${REDIS_DATABASE:-0}"
+      # 인증이 필요할 때만
+      SPRING_DATA_REDIS_PASSWORD: "${REDIS_PASSWORD}"
 
     extra_hosts:
       - "host.docker.internal:host-gateway"
