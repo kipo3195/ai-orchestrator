@@ -3,11 +3,13 @@ package com.ucware.ai_orchestrator.conversationstart.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -26,6 +28,8 @@ import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStartResu
 import com.ucware.ai_orchestrator.conversationstart.infrastructure.config.ConversationStartProperties;
 import com.ucware.ai_orchestrator.conversationstart.infrastructure.repository.InMemoryConversationStartRepository;
 import com.ucware.ai_orchestrator.execution.domain.AiExecutionStatus;
+import com.ucware.ai_orchestrator.policy.application.AiExecutionPolicyService;
+import com.ucware.ai_orchestrator.policy.domain.GlobalAiPolicySnapshot;
 import com.ucware.ai_orchestrator.result.application.AiResultRouter;
 import com.ucware.ai_orchestrator.result.application.RoutingRefFactory;
 import com.ucware.ai_orchestrator.result.domain.ResultEvent;
@@ -152,12 +156,34 @@ class ConversationStartServiceTests {
         assertThat(execution.getStatus()).isEqualTo(AiExecutionStatus.COMPLETED);
     }
 
+    @Test
+    void scheduledExecutionIsRejectedWhenTenantGlobalPolicyTurnsOffBeforeExecution() {
+        TestContext context = new TestContext();
+        ConversationStart execution = context.service.start(
+                "room-session-1", "client-session-1", "user-1", "room-1", "chat");
+        ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+        verify(context.scheduler).schedule(any(), any(), taskCaptor.capture());
+
+        context.policySnapshot.set(GlobalAiPolicySnapshot.initialized(
+                Map.of("default", false), Instant.parse("2026-01-01T00:00:05Z")));
+
+        taskCaptor.getValue().run();
+
+        assertThat(execution.getStatus()).isEqualTo(AiExecutionStatus.REJECTED);
+        verify(context.aiPort, never()).generateSuggestion(any());
+    }
+
     private static final class TestContext {
         private final InMemoryConversationStartRepository repository =
                 new InMemoryConversationStartRepository();
         private final ConversationStartScheduler scheduler = mock(ConversationStartScheduler.class);
         private final ConversationStartAiPort aiPort = mock(ConversationStartAiPort.class);
         private final AiResultRouter resultRouter = mock(AiResultRouter.class);
+        private final AtomicReference<GlobalAiPolicySnapshot> policySnapshot =
+                new AtomicReference<>(GlobalAiPolicySnapshot.initialized(
+                        Map.of("default", true), Instant.parse("2026-01-01T00:00:00Z")));
+        private final AiExecutionPolicyService policyService =
+                new AiExecutionPolicyService(policySnapshot::get);
         private final ConversationStartService service = new ConversationStartService(
                 repository,
                 scheduler,
@@ -168,6 +194,7 @@ class ConversationStartServiceTests {
                 new RoutingRefFactory(new ResultRouterProperties(
                         "default", new ResultRouterProperties.Delivery(
                                 Map.of(), "/internal/v1/ai-results",
-                                Duration.ofSeconds(3), Duration.ofSeconds(5)))));
+                                Duration.ofSeconds(3), Duration.ofSeconds(5)))),
+                policyService);
     }
 }

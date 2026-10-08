@@ -6,5 +6,6 @@ public enum AiExecutionStatus {
     EXECUTING,
     COMPLETED,
     FAILED,
+    REJECTED,
     CANCELLED
 }

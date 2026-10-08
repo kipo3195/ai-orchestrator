@@ -53,6 +53,10 @@ public class ConversationStart {
         execution.fail();
     }
 
+    public synchronized void reject() {
+        execution.reject();
+    }
+
     public boolean isExecutable() {
         return execution.isScheduled();
     }

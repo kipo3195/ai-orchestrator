@@ -20,6 +20,8 @@ import com.ucware.ai_orchestrator.conversationstart.infrastructure.config.Conver
 import com.ucware.ai_orchestrator.execution.domain.AiExecution;
 import com.ucware.ai_orchestrator.execution.domain.AiExecutionStatus;
 import com.ucware.ai_orchestrator.execution.domain.AiWorkflowType;
+import com.ucware.ai_orchestrator.policy.application.AiExecutionPolicyService;
+import com.ucware.ai_orchestrator.policy.domain.AiExecutionPolicyDecision;
 import com.ucware.ai_orchestrator.result.application.AiResultRouter;
 import com.ucware.ai_orchestrator.result.application.RoutingRefFactory;
 import com.ucware.ai_orchestrator.result.domain.ResultEvent;
@@ -39,6 +41,7 @@ public class ConversationStartService
     private final ConversationStartAiPort aiPort;
     private final AiResultRouter resultRouter;
     private final RoutingRefFactory routingRefFactory;
+    private final AiExecutionPolicyService policyService;
 
     public ConversationStartService(ConversationStartRepository repository,
                                     ConversationStartScheduler scheduler,
@@ -46,7 +49,8 @@ public class ConversationStartService
                                     ConversationStartProperties properties,
                                     ConversationStartAiPort aiPort,
                                     AiResultRouter resultRouter,
-                                    RoutingRefFactory routingRefFactory) {
+                                    RoutingRefFactory routingRefFactory,
+                                    AiExecutionPolicyService policyService) {
         this.repository = repository;
         this.scheduler = scheduler;
         this.delayPolicy = delayPolicy;
@@ -54,6 +58,7 @@ public class ConversationStartService
         this.aiPort = aiPort;
         this.resultRouter = resultRouter;
         this.routingRefFactory = routingRefFactory;
+        this.policyService = policyService;
     }
 
     @Override
@@ -108,6 +113,15 @@ public class ConversationStartService
         synchronized (this) {
             execution = repository.findById(executionId).orElse(null);
             if (execution == null || !execution.isExecutable() || !isCurrentExecution(execution)) {
+                return;
+            }
+
+            String tenantId = execution.getExecution().getRoutingRef().tenantId();
+            AiExecutionPolicyDecision policyDecision = policyService.evaluateGlobal(tenantId);
+            if (!policyDecision.allowed()) {
+                execution.reject();
+                logger.warn("Conversation start AI rejected by policy. executionId={}, tenantId={}, reason={}",
+                        executionId, tenantId, policyDecision.reason());
                 return;
             }
             execution.startExecution();

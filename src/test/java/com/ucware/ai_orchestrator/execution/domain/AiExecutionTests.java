@@ -41,6 +41,22 @@ class AiExecutionTests {
                 .hasMessage("Only scheduled executions can start");
     }
 
+    @Test
+    void scheduledExecutionCanBeRejectedBeforeItStarts() {
+        Instant now = Instant.parse("2026-01-01T00:00:00Z");
+        AiExecution execution = AiExecution.create(
+                "execution-1", AiWorkflowType.CONVERSATION_START, routingRef(), now, now);
+        execution.schedule();
+
+        execution.reject();
+
+        assertThat(execution.getStatus()).isEqualTo(AiExecutionStatus.REJECTED);
+        assertThat(execution.isActive()).isFalse();
+        assertThatThrownBy(execution::start)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Only scheduled executions can start");
+    }
+
     private static RoutingRef routingRef() {
         return RoutingRef.forClientSession(
                 "default", "user-1", "client-session-1", null);

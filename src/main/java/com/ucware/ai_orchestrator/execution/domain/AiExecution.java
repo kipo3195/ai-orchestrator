@@ -64,6 +64,13 @@ public class AiExecution {
         }
     }
 
+    public synchronized void reject() {
+        if (status != AiExecutionStatus.SCHEDULED) {
+            throw new IllegalStateException("Only scheduled executions can be rejected");
+        }
+        status = AiExecutionStatus.REJECTED;
+    }
+
     public boolean isScheduled() {
         return status == AiExecutionStatus.SCHEDULED;
     }
