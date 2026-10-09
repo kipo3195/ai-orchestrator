@@ -137,5 +137,4 @@ Circuit breaker와 retry가 필요한 Omni AI 호출의 resilience 정책은 별
 ## Related
 
 - [001. Policy Persistence Access](001-policy-persistence-access.md)
-- [Policy Immutable Snapshot Refresh](../engineering/policy-immutable-snapshot-refresh.md)
-
+- [Policy Immutable Snapshot Refresh](../engineering/001-policy-immutable-snapshot-refresh.md)

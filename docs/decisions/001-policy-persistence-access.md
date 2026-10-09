@@ -121,4 +121,4 @@ Connection pool의 크기만으로 User Policy fallback 동시 실행을 제어�
 ## Related
 
 - [002. User Policy Cache-Aside and Fallback Isolation](002-user-policy-cache-aside-and-fallback-isolation.md)
-- [Policy Immutable Snapshot Refresh](../engineering/policy-immutable-snapshot-refresh.md)
+- [Policy Immutable Snapshot Refresh](../engineering/001-policy-immutable-snapshot-refresh.md)
