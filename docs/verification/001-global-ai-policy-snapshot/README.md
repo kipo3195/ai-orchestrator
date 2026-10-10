@@ -4,7 +4,7 @@ Status: Draft
 
 ## Objective
 
-AtomicReference와 불변 snapshot의 초기 상태, 전체 교체, 동시 접근, AI 호출 직전의 정책 차단을 검증한다.
+AtomicReference와 불변 snapshot의 초기 상태, 전체 교체, 동시 접근, AI 호출 직전의 정책 차단을 검증한다
 
 ## Verification Target
 
