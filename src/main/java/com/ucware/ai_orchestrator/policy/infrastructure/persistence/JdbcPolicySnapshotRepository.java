@@ -32,6 +32,7 @@ public class JdbcPolicySnapshotRepository implements PolicySnapshotRepository {
         Map<String, Boolean> policies = new LinkedHashMap<>();
         for (GlobalPolicyRow row : rows) {
             if (row.tenantId() == null || row.tenantId().isBlank()) {
+                // 여기는 로깅 후 continue로 처리되어야 하는거 아닐까?
                 throw new IllegalStateException("Global Policy tenantId must not be blank");
             }
             Boolean previous = policies.putIfAbsent(row.tenantId(), row.enabled());

@@ -6,8 +6,6 @@ Status: Draft
 
 Global / Feature Policy를 Spring Scheduler로 주기적으로 조회하고, 검증된 immutable snapshot을 요청 처리 경로에 원자적으로 제공하는 구현 방식을 기록한다.
 
-이 문서는 Policy 기능에 한정된 engineering note다. 프로젝트 전체의 scheduled cache 또는 reference data 관리 표준을 정의하지 않는다. 동일한 패턴이 다른 기능에서도 반복될 때 공통 engineering guideline으로 분리할 수 있다.
-
 ## Scope
 
 - Spring Scheduler 기반 refresh
@@ -27,25 +25,60 @@ Global / Feature Policy를 Spring Scheduler로 주기적으로 조회하고, 검
 
 ## Component Boundary
 
+현재 구현 범위는 tenant별 Global AI Policy snapshot의 조회, 게시와 평가다.
+
 ```text
 policy/
 ├── application
-│   └── AiExecutionPolicyService
+│   ├── AiExecutionPolicyService
+│   └── port
+│       └── PolicySnapshotRepository
 ├── domain
-│   └── PolicySnapshot
+│   ├── GlobalAiPolicySnapshot
+│   ├── GlobalAiPolicyProvider
+│   ├── AiExecutionPolicyDecision
+│   └── AiExecutionPolicyReason
 └── infrastructure
     ├── config
-    │   └── PolicyProperties
+    │   ├── PolicyProperties
+    │   └── PolicySchedulingConfig
+    ├── memory
+    │   └── InMemoryGlobalAiPolicyStore
     ├── persistence
     │   └── JdbcPolicySnapshotRepository
     └── scheduling
         └── PolicySnapshotRefresher
 ```
 
-- `PolicySnapshot`은 Spring, JDBC와 Scheduler API에 의존하지 않는다.
-- `PolicySnapshotRefresher`는 Infrastructure에서 Spring scheduling과 repository 호출을 연결한다.
-- Application은 현재 snapshot을 제공하는 기술 독립적인 interface를 통해 정책을 평가한다.
+- `AiExecutionPolicyService`는 요청 처리 시 `GlobalAiPolicyProvider`에서 현재 snapshot을 한 번 조회하고, 초기화 여부와 tenant의 Global AI 활성화 상태를 `AiExecutionPolicyDecision`으로 변환한다.
+- `GlobalAiPolicySnapshot`은 초기화 여부, tenant별 활성화 상태와 정상 로딩 시각을 보관하는 immutable Domain model이며 Spring, JDBC와 Scheduler API에 의존하지 않는다.
+- `GlobalAiPolicyProvider`는 Application이 현재 snapshot을 읽기 위한 기술 독립적인 조회 interface다.
+- `PolicySnapshotRepository`는 Global Policy 전체를 source of truth에서 조회하기 위한 Application port다.
+- `JdbcPolicySnapshotRepository`는 `PolicySnapshotRepository`의 JDBC 구현으로, 전체 tenant policy를 조회하고 중복되거나 비어 있는 tenant 식별자를 거부한다.
+- `InMemoryGlobalAiPolicyStore`는 `GlobalAiPolicyProvider`를 구현하며 `AtomicReference<GlobalAiPolicySnapshot>`로 현재 snapshot을 보관하고 새 snapshot을 원자적으로 교체한다.
+- `PolicySnapshotRefresher`는 repository에서 전체 Global Policy를 조회하고 새 snapshot을 생성해 `InMemoryGlobalAiPolicyStore`에 게시한다. Scheduled 진입점에서 refresh 실패를 처리해 마지막 정상 snapshot을 유지한다.
+- `PolicySchedulingConfig`는 Spring scheduling을 활성화하고 snapshot 로딩 시각에 사용할 UTC `Clock`을 제공한다.
+- `PolicyProperties`는 `policy.snapshot-refresh-interval`을 `Duration`으로 바인딩하고 양수인지 검증한다.
 - JDBC 구현 세부사항은 [001. Policy Persistence Access](../decisions/001-policy-persistence-access.md)를 따른다.
+
+현재 의존과 실행 흐름은 다음과 같다.
+
+```text
+정책 평가:
+AiExecutionPolicyService
+    → GlobalAiPolicyProvider
+        ← InMemoryGlobalAiPolicyStore
+            → GlobalAiPolicySnapshot
+
+snapshot refresh:
+PolicySnapshotRefresher
+    → PolicySnapshotRepository
+        ← JdbcPolicySnapshotRepository
+    → InMemoryGlobalAiPolicyStore.replace(...)
+    → Clock
+```
+
+`PolicySnapshotRefresher`는 repository에 대해서는 Application port에 의존하지만, snapshot 게시에는 별도의 write interface 없이 `InMemoryGlobalAiPolicyStore` 구현체를 직접 사용한다.
 
 ## Snapshot Model
 
@@ -88,7 +121,7 @@ DB에서 tenant별 Global Policy 전체 조회
 
 다음 방식은 사용하지 않는다.
 
-- 현재 snapshot의 `Map`을 제자리에서 수정
+- 현재 snapshot의 `Map`을 직접 수정
 - 일부 tenant 상태를 먼저 교체하고 나머지 tenant 상태를 나중에 교체
 - 조회된 일부 Policy만 기존 snapshot에 병합
 - 검증 실패 결과로 현재 snapshot을 덮어쓰기
