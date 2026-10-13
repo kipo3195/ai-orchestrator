@@ -2,9 +2,9 @@
 
 | 항목 | 값 |
 |---|---|
-| Status | Partial |
-| Last Verified At | - |
-| Verified Commit | - |
+| Status | Verified |
+| Last Verified At | 2026-10-13 17:41 KST |
+| Verified Commit | `2707097` |
 | Stale Since | - |
 | Stale Reason | - |
 
@@ -91,9 +91,9 @@ Snapshot 모델과 정책 분기는 단위 테스트로 검증한다. Repository
 
 | 항목 | 값 |
 |---|---|
-| Executed At | 2026-10-13 17:24 KST |
-| Commit | `9980610` |
-| Working Tree | Dirty |
+| Executed At | 2026-10-13 17:41 KST |
+| Commit | `2707097` |
+| Working Tree | Clean |
 | Environment | Java 17.0.19, Gradle 9.7.1 |
 | Command | `./gradlew test --tests '*policy.*' --tests '*ConversationStartServiceTests' --rerun-tasks` |
 | Required TC Coverage | TC-001, TC-002, TC-003, TC-004 |
@@ -104,7 +104,8 @@ Snapshot 모델과 정책 분기는 단위 테스트로 검증한다. Repository
 
 ## Evidence
 
-- Execution Summary: [Local Gradle HTML report](../../../build/reports/tests/test/index.html)
+- Execution Summary: [2026-10-13 clean verification execution](evidence/2026-10-13-2707097.md)
+- Local Report: [Gradle HTML report](../../../build/reports/tests/test/index.html)
 - CI Run: -
 
 `Last Verification Execution`을 검증 상태와 Test Summary 실행 결과의 기준으로 사용한다. 별도 실행 요약, 로그 또는 CI 결과가 필요한 경우에만 위 항목에 연결한다.
@@ -114,6 +115,7 @@ Snapshot 모델과 정책 분기는 단위 테스트로 검증한다. Repository
 | 항목 | 영향 | 현재 판단 | 대응 또는 추적 위치 |
 |---|---|---|---|
 | `enabled=NULL`이 JDBC에서 `false`로 해석될 수 있음 | 필수 null 거절 규칙과 달리 잘못된 정책 값이 OFF 상태로 게시될 수 있다. | 확인 및 수정 필요 | JDBC 통합 테스트와 [Policy Immutable Snapshot Refresh](../../engineering/001-policy-immutable-snapshot-refresh.md)의 publication validation 기준 |
+| 검증 기준 Engineering 문서가 `Draft` 상태임 | 설계 기준이 확정되기 전에 변경되면 현재 검증 결과의 재검토가 필요하다. | 기준 문서 변경 시 `Stale` 전환 | [Policy Immutable Snapshot Refresh](../../engineering/001-policy-immutable-snapshot-refresh.md)와 [Stale 전환 규칙](../README.md#stale-전환-규칙) |
 
 ## Unverified Boundaries and Follow-up Tests
 
@@ -127,7 +129,7 @@ Snapshot 모델과 정책 분기는 단위 테스트로 검증한다. Repository
 ## Overall Assessment
 
 - Assessment Scope: Unit Scope
-- Basis: 모든 Required TC가 하나의 Verification 실행에서 실패와 skip 없이 통과했다. 다만 실행 당시 Working Tree가 `Dirty`여서 커밋만으로 검증 대상을 재현할 수 없으므로 최종 상태는 `Partial`로 유지한다.
+- Basis: clean Working Tree의 `2707097` commit에서 모든 Required TC가 하나의 Verification 실행으로 실패와 skip 없이 통과했으며, 실행 조건과 결과를 보존형 evidence로 기록했다.
 
 ### Verified Behaviors
 
@@ -144,8 +146,7 @@ Snapshot 모델과 정책 분기는 단위 테스트로 검증한다. Repository
 
 - TC-004는 단일 JVM의 in-memory Store 단위 테스트이며 가능한 모든 thread interleaving을 증명하지 않는다.
 - JDBC, Spring scheduling과 실제 AI adapter 연결 경계는 검증하지 않았다.
-- 실행 당시 Working Tree가 `Dirty`여서 `9980610` 커밋만으로 실제 검증 대상을 재현할 수 없다.
 
 ### Conclusion
 
-현재 Working Tree에서는 모든 Required TC가 통과했다. 변경사항을 커밋한 clean Working Tree에서 같은 Verification 명령을 다시 실행해 통과하기 전까지 최종 상태를 `Verified`로 판정하지 않는다.
+Clean Working Tree의 `2707097` commit에서 모든 Required TC가 통과했으며, 위에 명시한 Unit Scope에 대해 `Verified`로 판정한다.

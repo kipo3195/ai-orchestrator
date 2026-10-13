@@ -89,9 +89,9 @@ Required 여부, 자동화 상태와 `Last Verification Execution` 기준 실행
 
 | 항목 | 값 |
 |---|---|
-| Executed At | 2026-10-13 17:02 KST |
-| Commit | `9980610` |
-| Working Tree | Dirty |
+| Executed At | 2026-10-13 17:41 KST |
+| Commit | `2707097` |
+| Working Tree | Clean |
 | Environment | Java 17.0.19, Gradle 9.7.1 |
 | Command | `./gradlew test --tests '*policy.*' --tests '*ConversationStartServiceTests' --rerun-tasks` |
 | Execution Scope | Verification |

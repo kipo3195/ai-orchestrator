@@ -108,9 +108,9 @@ Tenant 정책의 누락/OFF/ON 분기는 snapshot과 정책 서비스의 반환�
 
 | 항목 | 값 |
 |---|---|
-| Executed At | 2026-10-13 17:24 KST |
-| Commit | `9980610` |
-| Working Tree | Dirty |
+| Executed At | 2026-10-13 17:41 KST |
+| Commit | `2707097` |
+| Working Tree | Clean |
 | Environment | Java 17.0.19, Gradle 9.7.1 |
 | Command | `./gradlew test --tests '*policy.*' --tests '*ConversationStartServiceTests' --rerun-tasks` |
 | Execution Scope | Verification |
