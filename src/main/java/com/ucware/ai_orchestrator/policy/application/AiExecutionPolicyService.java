@@ -20,6 +20,9 @@ public class AiExecutionPolicyService {
 
     public AiExecutionPolicyDecision evaluateGlobal(String tenantId) {
         Objects.requireNonNull(tenantId);
+        if (tenantId.isBlank()) {
+            throw new IllegalArgumentException("tenantId must not be blank");
+        }
         GlobalAiPolicySnapshot snapshot = globalAiPolicyProvider.currentSnapshot();
 
         if (!snapshot.initialized()) {

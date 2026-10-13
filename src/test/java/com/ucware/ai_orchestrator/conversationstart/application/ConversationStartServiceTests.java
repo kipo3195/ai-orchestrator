@@ -159,14 +159,21 @@ class ConversationStartServiceTests {
     @Test
     void scheduledExecutionIsRejectedWhenTenantGlobalPolicyTurnsOffBeforeExecution() {
         TestContext context = new TestContext();
+        // scheduler가 Mock 객체라면 실제 예약 작업은 실행되지 않으며, 예약 작업(호출은 함)을 제외한 로직만 점검
+        // ① 실제 서비스 실행 → Mock scheduler.schedule() 호출 기록
         ConversationStart execution = context.service.start(
                 "room-session-1", "client-session-1", "user-1", "room-1", "chat");
+        // ② schedule() 호출 여부 검증 + Runnable 캡처
         ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+        // verify는 context.service.start내에서 스케쥴 메소드가 실제로 호출되었나?
         verify(context.scheduler).schedule(any(), any(), taskCaptor.capture());
 
+        // default - false
         context.policySnapshot.set(GlobalAiPolicySnapshot.initialized(
                 Map.of("default", false), Instant.parse("2026-01-01T00:00:05Z")));
 
+        // start로직 내부에 Runnable로 구현된 실행 검증
+        // ③ 캡처한 Runnable 직접 실행
         taskCaptor.getValue().run();
 
         assertThat(execution.getStatus()).isEqualTo(AiExecutionStatus.REJECTED);

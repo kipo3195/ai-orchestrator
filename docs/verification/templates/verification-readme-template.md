@@ -8,7 +8,7 @@
 | Stale Since | - |
 | Stale Reason | - |
 
-이 문서는 해당 Verification의 상태, TC별 자동화 상태와 실행 결과의 단일 원천이다. 상태 정의와 전환 규칙은 [Verification 상태 관리](../README.md#상태-관리)를 따른다.
+이 문서는 해당 Verification의 상태, TC별 자동화 상태와 `Last Verification Execution` 기준 실행 결과의 단일 원천이다. 상태 정의와 전환 규칙은 [Verification 상태 관리](../README.md#상태-관리)를 따른다.
 
 ## Objective
 
@@ -51,6 +51,7 @@
 <!--
 자동화 상태: Planned | Partial | Automated | Manual
 실행 결과: Not Run | Passed | Failed | Blocked
+실행 결과는 Last Verification Execution에서 해당 TC가 얻은 결과를 기록한다.
 -->
 
 | TC ID | 검증 항목 | 테스트 수준 | Required | 자동화 상태 | 실행 결과 |
@@ -85,17 +86,18 @@
 - JUnit XML: `build/test-results/test/TEST-*.xml`
 - CI: [실행 결과 링크]
 
-## Last Execution
+## Last Verification Execution
 
-<!-- 테스트 실행 후 실제 값을 기록한다. 실행 전에는 '-' 또는 'Not Run'을 유지한다. -->
+<!-- 모든 Required TC를 동일 조건에서 함께 실행한 후 실제 값을 기록한다. 개별 TC 실행을 조합하지 않으며, 실행 전에는 '-' 또는 'Not Run'을 유지한다. -->
 
 | 항목 | 값 |
 |---|---|
 | Executed At | - |
-| Verified Commit | - |
+| Commit | - |
 | Working Tree | - |
 | Environment | - |
 | Command | - |
+| Required TC Coverage | - |
 | Result | Not Run |
 | Passed / Failed / Skipped | - |
 
@@ -104,7 +106,7 @@
 - Execution Summary: -
 - CI Run: -
 
-`Last Execution`을 기본 실행 증적으로 사용한다. 별도 실행 요약, 로그 또는 CI 결과가 필요한 경우에만 위 항목에 연결한다.
+`Last Verification Execution`을 검증 상태와 Test Summary 실행 결과의 기준으로 사용한다. 별도 실행 요약, 로그 또는 CI 결과가 필요한 경우에만 위 항목에 연결한다.
 
 ## Known Risks and Gaps
 

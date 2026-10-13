@@ -206,7 +206,8 @@ policy.snapshot-refresh-interval=5s
 - Validation 실패 결과가 게시되지 않는다.
 - 전체 tenant 상태가 하나의 snapshot으로 교체된다.
 - Snapshot의 tenant policy collection을 외부에서 수정할 수 없다.
-- 하나의 정책 평가가 동일한 snapshot instance를 사용한다.
+
+하나의 정책 평가가 평가 시작 시 조회한 동일한 snapshot instance를 사용하는 것은 구현 원칙으로 유지한다. 현재 Global Policy 평가는 단일 snapshot 조회 후 판단하는 단순한 흐름이므로, provider 호출 횟수 자체는 필수 단위 테스트 대상으로 두지 않는다. 향후 하나의 평가에서 여러 정책 값을 조합해 snapshot 혼합 위험이 생기면 행위 기반 단위 테스트를 추가한다.
 
 Scheduler 주기만큼 실제로 기다리는 테스트는 작성하지 않는다. `PolicySnapshotRefresher`의 핵심 refresh 동작을 직접 호출하고, `@Scheduled` 진입점은 얇게 유지한다.
 

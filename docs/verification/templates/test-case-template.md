@@ -5,7 +5,7 @@
 | Verification | [상위 Verification 문서](../README.md) |
 | Test Level | [Unit / Integration / Workflow / End-to-End / Manual] |
 
-Required 여부, 자동화 상태와 실행 결과는 [상위 Verification 문서](../README.md)에서만 관리한다.
+Required 여부, 자동화 상태와 `Last Verification Execution` 기준 실행 결과는 [상위 Verification 문서](../README.md)에서 관리한다. 이 문서의 `Last Execution`은 해당 TC의 최근 단독 또는 전체 실행을 기록하며, 단독 실행만으로 상위 Verification의 상태를 변경하지 않는다.
 
 ## Verification Purpose
 
@@ -72,6 +72,22 @@ Required 여부, 자동화 상태와 실행 결과는 [상위 Verification 문�
 ```sh
 ./gradlew test --tests 'fully.qualified.TestClass.testMethodName' --rerun-tasks
 ```
+
+## Last Execution
+
+<!-- 이 TC의 모든 매핑 테스트를 실행한 최신 결과를 기록한다. 실패 또는 차단된 실행도 기록하며, 실행 전에는 '-' 또는 'Not Run'을 유지한다. -->
+
+| 항목 | 값 |
+|---|---|
+| Executed At | - |
+| Commit | - |
+| Working Tree | - |
+| Environment | - |
+| Command | - |
+| Execution Scope | - |
+| Parent Execution / Evidence | - |
+| Result | Not Run |
+| Passed / Failed / Skipped | - |
 
 ## Cleanup / Postconditions
 

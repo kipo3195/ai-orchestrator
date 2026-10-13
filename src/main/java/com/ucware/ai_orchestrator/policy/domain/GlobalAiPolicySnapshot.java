@@ -12,12 +12,27 @@ public record GlobalAiPolicySnapshot(
     // 객체 생성시 검증하는 간결생성자 
     public GlobalAiPolicySnapshot {
         Objects.requireNonNull(tenantPolicies);
-        tenantPolicies = Map.copyOf(tenantPolicies);
         if (initialized) {
             Objects.requireNonNull(loadedAt);
         } else if (loadedAt != null || !tenantPolicies.isEmpty()) {
             throw new IllegalArgumentException("Uninitialized snapshot cannot contain policy data");
         }
+
+        for (Map.Entry<String, Boolean> entry : tenantPolicies.entrySet()) {
+            String tenantId = entry.getKey();
+
+            if (tenantId == null || tenantId.isBlank()) {
+                throw new IllegalArgumentException(
+                        "Global Policy tenantId must not be blank");
+            }
+
+            if (entry.getValue() == null) {
+                throw new IllegalArgumentException(
+                        "Global Policy enabled must not be null");
+            }
+        }
+
+        tenantPolicies = Map.copyOf(tenantPolicies);
     }
 
     public static GlobalAiPolicySnapshot uninitialized() {

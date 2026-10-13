@@ -30,8 +30,8 @@ verification/
 
 | 구분 | 역할 |
 |---|---|
-| 검증별 `README.md` | 검증 대상, 전략과 범위, TC 목록 및 현재 검증 상태의 단일 원천 |
-| `test-cases/` | TC별 검증 목적, 위험, Given(어떤 조건)/When(어떤 동작 발생)/Then(어떤 결과), 자동화 테스트 매핑과 단독 실행 명령을 정적으로 기록 |
+| 검증별 `README.md` | 검증 대상, 전략과 범위, TC 목록, `Last Verification Execution` 및 현재 검증 상태의 단일 원천 |
+| `test-cases/` | TC별 검증 목적, 위험, Given(어떤 조건)/When(어떤 동작 발생)/Then(어떤 결과), 자동화 테스트 매핑, 단독 실행 명령과 `Last Execution`을 기록 |
 | `evidence/` | README만으로 충분하지 않을 때 실행 요약이나 로그를 선택적으로 보관 |
 
 ## 검증 원칙
@@ -43,13 +43,15 @@ verification/
 
 ## 상태 관리
 
-검증 상태와 TC별 자동화 상태 및 실행 결과는 각 검증의 `README.md`에서만 관리한다. 루트 목록과 TC 문서에는 현재 상태를 중복해서 기록하지 않는다.
+검증 상태, TC별 Required 여부와 자동화 상태는 각 검증의 `README.md`에서 관리한다. Test Summary의 TC별 실행 결과와 검증 상태는 모든 Required TC를 동일 조건에서 함께 실행한 `Last Verification Execution`을 기준으로 판정한다.
+
+각 TC 문서의 `Last Execution`은 해당 TC가 가장 최근에 실행된 사실을 기록한다. 단독 실행 결과는 부분 실행 증적이며, 여러 TC의 독립적인 `Last Execution`을 조합해 `Last Verification Execution`으로 간주하거나 검증 상태를 `Verified`로 변경하지 않는다. `Last Verification Execution`에 포함된 TC의 `Last Execution`은 같은 전체 실행과 증적을 참조할 수 있다.
 
 | 상태 | 의미 |
 |---|---|
 | `Draft` | 검증 범위와 TC를 작성하는 중이다. |
 | `In Progress` | 테스트를 구현하거나 실행하는 중이다. |
-| `Partial` | 일부 Required TC가 미구현, 미실행 또는 실패 상태다. |
+| `Partial` | 일부 Required TC가 미구현·미실행·실패 상태이거나 실행 증적과 재현성을 포함한 완료 기준 일부를 충족하지 못했다. |
 | `Verified` | 모든 완료 기준을 만족했다. |
 | `Stale` | 마지막 검증 이후 관련 동작이 변경되어 재검증이 필요하다. |
 
@@ -74,12 +76,16 @@ Verification을 `Verified`로 판정하려면 다음 조건을 모두 만족해�
 5. 검증하지 않은 경계와 알려진 위험이 명시되어 있다.
 6. 최종 판정은 실제 검증 범위를 넘어서지 않는다.
 
-검증별 `README.md`의 `Last Execution` 기록을 기본 실행 증적으로 사용한다. CI 실행 링크나 별도 로그가 필요하면 `Evidence`에서 추가로 연결한다.
+검증별 `README.md`의 `Last Verification Execution`을 검증 완료 판정의 기본 실행 증적으로 사용한다. 이 기록은 해당 Verification의 모든 Required TC를 포함하는 하나의 실행이어야 하며, 개별 TC 실행 결과를 사후에 조합해서 만들지 않는다. 각 TC의 `Last Execution`은 단독 또는 전체 실행에서 해당 TC가 마지막으로 실행된 결과를 기록한다. CI 실행 링크나 별도 로그가 필요하면 `Evidence`에서 추가로 연결한다.
 
 ## 템플릿
 
 - [Verification README 템플릿](templates/verification-readme-template.md)
 - [Test Case 템플릿](templates/test-case-template.md)
+
+## 실행 기록 가이드
+
+- [Verification 실행 기록 가이드](guides/verification-execution-guide.md)
 
 ## 공통 실행 가이드
 
