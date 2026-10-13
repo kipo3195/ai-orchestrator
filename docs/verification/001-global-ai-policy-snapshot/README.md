@@ -8,7 +8,7 @@
 | Stale Since | - |
 | Stale Reason | - |
 
-이 문서는 해당 Verification의 상태, TC별 자동화 상태와 `Last Verification Execution` 기준 실행 결과의 단일 원천이다. 상태 정의와 전환 규칙은 [Verification 상태 관리](../README.md#상태-관리)를 따른다.
+이 문서는 해당 Verification의 현재 상태와 TC별 자동화·실행 상태의 단일 원천이다. 최신 실행의 환경, 명령과 상세 집계는 `Last Verification Execution`에 연결된 evidence에 기록한다. 상태 정의와 전환 규칙은 [Verification 상태 관리](../README.md#상태-관리)를 따른다.
 
 ## Objective
 
@@ -89,26 +89,16 @@ Snapshot 모델과 정책 분기는 단위 테스트로 검증한다. Repository
 
 ## Last Verification Execution
 
-| 항목 | 값 |
-|---|---|
-| Executed At | 2026-10-13 17:41 KST |
-| Commit | `2707097` |
-| Working Tree | Clean |
-| Environment | Java 17.0.19, Gradle 9.7.1 |
-| Command | `./gradlew test --tests '*policy.*' --tests '*ConversationStartServiceTests' --rerun-tasks` |
-| Required TC Coverage | TC-001, TC-002, TC-003, TC-004 |
-| Result | Passed |
-| Passed / Failed / Skipped | 26 / 0 / 0 |
+- Execution Summary: [2026-10-13 clean verification execution](evidence/2026-10-13-2707097.md)
 
-전체 26개 중 Required TC에 직접 매핑된 테스트는 20개이며, `ConversationStartServiceTests` 클래스 필터로 포함된 추가 회귀 테스트 6개도 함께 통과했다.
+실행 환경, 명령, Required TC 범위와 테스트 suite별 집계는 위 evidence를 참조한다.
 
 ## Evidence
 
-- Execution Summary: [2026-10-13 clean verification execution](evidence/2026-10-13-2707097.md)
 - Local Report: [Gradle HTML report](../../../build/reports/tests/test/index.html)
 - CI Run: -
 
-`Last Verification Execution`을 검증 상태와 Test Summary 실행 결과의 기준으로 사용한다. 별도 실행 요약, 로그 또는 CI 결과가 필요한 경우에만 위 항목에 연결한다.
+`Last Verification Execution`에 연결된 execution summary를 검증 상태와 Test Summary 실행 결과의 기준으로 사용한다. 로컬 리포트와 CI 결과는 필요한 경우 추가 증적으로 연결한다.
 
 ## Known Risks and Gaps
 

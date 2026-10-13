@@ -1,11 +1,11 @@
 # Verification 실행 기록 가이드
 
-테스트를 실제로 실행한 뒤 결과와 실행 조건을 TC의 `Last Execution` 또는 Verification의 `Last Verification Execution`에 기록하는 방법을 설명한다.
+테스트를 실제로 실행한 뒤 TC 단독 결과는 `Last Execution`에 기록하고, Verification 전체 실행은 evidence에 기록해 `Last Verification Execution`에 연결하는 방법을 설명한다.
 
 ## 기록 단위
 
 - TC `Last Execution`: 해당 TC에 매핑된 모든 테스트의 최신 실행 결과다. 단독 실행은 `TC Only`, 상위 Verification 실행에 포함된 경우에는 `Verification`으로 기록한다.
-- `Last Verification Execution`: 해당 Verification의 모든 Required TC를 동일한 소스와 환경에서 함께 실행한 결과다. Verification의 `Test Summary`와 상태는 이 결과를 기준으로 판정한다.
+- `Last Verification Execution`: 해당 Verification의 모든 Required TC를 동일한 소스와 환경에서 함께 실행한 evidence를 연결한다. Verification의 `Test Summary`와 상태는 이 evidence의 결과를 기준으로 판정한다.
 
 여러 TC의 독립적인 실행 결과를 조합해 `Last Verification Execution`으로 기록하지 않는다.
 
@@ -85,10 +85,10 @@ TC 단독 실행 결과는 해당 TC 문서에 기록한다.
 
 Verification README의 `Verification Tests` 명령을 실행한다. 이 명령에는 해당 Verification의 모든 Required TC가 포함되어야 한다.
 
-실행 결과에 모든 Required TC의 매핑 테스트가 포함됐는지 확인한 뒤 Verification README에 기록한다.
+실행 결과에 모든 Required TC의 매핑 테스트가 포함됐는지 확인한 뒤 `evidence/YYYY-MM-DD-<commit>.md`에 실행 요약을 기록한다.
 
 ```markdown
-## Last Verification Execution
+## [Verification Title] Verification Execution
 
 | 항목 | 값 |
 |---|---|
@@ -102,14 +102,22 @@ Verification README의 `Verification Tests` 명령을 실행한다. 이 명령�
 | Passed / Failed / Skipped | 12 / 0 / 0 |
 ```
 
-같은 실행에 포함된 각 TC의 `Last Execution`도 `Execution Scope: Verification`으로 갱신하고 상위 `Last Verification Execution`을 참조한다. Verification의 `Test Summary`와 상태는 이 전체 실행 결과를 기준으로 갱신한다.
+상세 집계와 생성된 리포트 경로를 evidence에 추가한 뒤 Verification README의 최신 실행 링크를 갱신한다.
+
+```markdown
+## Last Verification Execution
+
+- Execution Summary: [YYYY-MM-DD verification execution](evidence/YYYY-MM-DD-<commit>.md)
+```
+
+같은 실행에 포함된 각 TC의 `Last Execution`도 `Execution Scope: Verification`으로 갱신하고 상위 `Last Verification Execution`을 참조한다. Verification의 `Test Summary`와 상태는 연결된 evidence의 전체 실행 결과를 기준으로 갱신한다.
 
 ## 6. Evidence 관리
 
-`Last Execution`과 `Last Verification Execution`이 기본 증적이므로 별도 Evidence는 필수가 아니다. 장기 보존, 상세 실패 로그, CI 연결 또는 `Dirty` 실행에 대한 설명이 필요할 때만 추가한다.
-
-로컬 리포트는 다음 실행이나 `clean`에서 덮어써질 수 있다. 장기 보존이 필요하면 다음 경로에 실행 요약을 저장한다.
+Verification 전체 실행은 다음 경로에 요약하고 `Last Verification Execution`에서 연결한다.
 
 ```text
 evidence/YYYY-MM-DD-<commit>.md
 ```
+
+로컬 리포트는 다음 실행이나 `clean`에서 덮어써질 수 있으므로 evidence에 실행 환경, 명령, Required TC 범위, 결과와 상세 집계를 기록한다. 상세 실패 로그나 CI 실행 링크는 필요한 경우 추가로 연결한다.
