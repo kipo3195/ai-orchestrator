@@ -63,4 +63,4 @@ Architecture → Decisions → Engineering → Verification
 
 | 문서 | 상태 | 설명 |
 | --- | --- | --- |
-| [001. Global AI Policy Snapshot](verification/001-global-ai-policy-snapshot/README.md) | Verified | 초기 상태, 불변 snapshot 교체, 동시 접근, AI 실행 차단 검증 및 증적 가이드 |
+| [001. AI Execution Policy Chain](verification/001-ai-execution-policy-chain/README.md) | Draft | Global → Feature → 전체 User Policy의 통합 평가와 AI 실행 차단 검증 |

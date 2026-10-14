@@ -25,7 +25,7 @@ Global / Feature Policy를 Spring Scheduler로 주기적으로 조회하고, 검
 
 ## Component Boundary
 
-현재 구현 범위는 tenant별 Global AI Policy snapshot의 조회, 게시와 평가다.
+현재 구현 범위는 tenant별 Global AI Policy와 Feature Policy snapshot의 조회, 게시와 평가다.
 
 ```text
 policy/
@@ -34,8 +34,10 @@ policy/
 │   └── port
 │       └── PolicySnapshotRepository
 ├── domain
-│   ├── GlobalAiPolicySnapshot
-│   ├── GlobalAiPolicyProvider
+│   ├── AiPolicySnapshot
+│   ├── AiPolicyProvider
+│   ├── AiFeature
+│   ├── FeaturePolicyKey
 │   ├── AiExecutionPolicyDecision
 │   └── AiExecutionPolicyReason
 └── infrastructure
@@ -43,20 +45,20 @@ policy/
     │   ├── PolicyProperties
     │   └── PolicySchedulingConfig
     ├── memory
-    │   └── InMemoryGlobalAiPolicyStore
+    │   └── InMemoryAiPolicyStore
     ├── persistence
     │   └── JdbcPolicySnapshotRepository
     └── scheduling
         └── PolicySnapshotRefresher
 ```
 
-- `AiExecutionPolicyService`는 요청 처리 시 `GlobalAiPolicyProvider`에서 현재 snapshot을 한 번 조회하고, 초기화 여부와 tenant의 Global AI 활성화 상태를 `AiExecutionPolicyDecision`으로 변환한다.
-- `GlobalAiPolicySnapshot`은 초기화 여부, tenant별 활성화 상태와 정상 로딩 시각을 보관하는 immutable Domain model이며 Spring, JDBC와 Scheduler API에 의존하지 않는다.
-- `GlobalAiPolicyProvider`는 Application이 현재 snapshot을 읽기 위한 기술 독립적인 조회 interface다.
-- `PolicySnapshotRepository`는 Global Policy 전체를 source of truth에서 조회하기 위한 Application port다.
-- `JdbcPolicySnapshotRepository`는 `PolicySnapshotRepository`의 JDBC 구현으로, 전체 tenant policy를 조회하고 중복되거나 비어 있는 tenant 식별자를 거부한다.
-- `InMemoryGlobalAiPolicyStore`는 `GlobalAiPolicyProvider`를 구현하며 `AtomicReference<GlobalAiPolicySnapshot>`로 현재 snapshot을 보관하고 새 snapshot을 원자적으로 교체한다.
-- `PolicySnapshotRefresher`는 repository에서 전체 Global Policy를 조회하고 새 snapshot을 생성해 `InMemoryGlobalAiPolicyStore`에 게시한다. Scheduled 진입점에서 refresh 실패를 처리해 마지막 정상 snapshot을 유지한다.
+- `AiExecutionPolicyService`는 요청 처리 시 `AiPolicyProvider`에서 현재 snapshot을 한 번 조회하고 Global → Feature 순서로 평가한다.
+- `AiPolicySnapshot`은 초기화 여부, tenant별 Global Policy, tenant/feature별 Feature Policy와 정상 로딩 시각을 보관하는 immutable Domain model이다.
+- `AiPolicyProvider`는 Application이 현재 snapshot을 읽기 위한 기술 독립적인 조회 interface다.
+- `PolicySnapshotRepository`는 Global Policy와 Feature Policy 전체를 source of truth에서 함께 조회하기 위한 Application port다.
+- `JdbcPolicySnapshotRepository`는 두 정책 집합을 하나의 read-only transaction에서 조회하고 식별자, 지원 feature와 상태를 검증한다.
+- `InMemoryAiPolicyStore`는 `AiPolicyProvider`를 구현하며 `AtomicReference<AiPolicySnapshot>`로 두 정책 집합을 원자적으로 교체한다.
+- `PolicySnapshotRefresher`는 repository 결과로 하나의 snapshot을 생성해 `InMemoryAiPolicyStore`에 게시한다. Scheduled 진입점에서 refresh 실패를 처리해 마지막 정상 snapshot을 유지한다.
 - `PolicySchedulingConfig`는 Spring scheduling을 활성화하고 snapshot 로딩 시각에 사용할 UTC `Clock`을 제공한다.
 - `PolicyProperties`는 `policy.snapshot-refresh-interval`을 `Duration`으로 바인딩하고 양수인지 검증한다.
 - JDBC 구현 세부사항은 [001. Policy Persistence Access](../decisions/001-policy-persistence-access.md)를 따른다.
@@ -66,23 +68,23 @@ policy/
 ```text
 정책 평가:
 AiExecutionPolicyService
-    → GlobalAiPolicyProvider
-        ← InMemoryGlobalAiPolicyStore
-            → GlobalAiPolicySnapshot
+    → AiPolicyProvider
+        ← InMemoryAiPolicyStore
+            → AiPolicySnapshot
 
 snapshot refresh:
 PolicySnapshotRefresher
     → PolicySnapshotRepository
         ← JdbcPolicySnapshotRepository
-    → InMemoryGlobalAiPolicyStore.replace(...)
+    → InMemoryAiPolicyStore.replace(...)
     → Clock
 ```
 
-`PolicySnapshotRefresher`는 repository에 대해서는 Application port에 의존하지만, snapshot 게시에는 별도의 write interface 없이 `InMemoryGlobalAiPolicyStore` 구현체를 직접 사용한다.
+`PolicySnapshotRefresher`는 repository에 대해서는 Application port에 의존하지만, snapshot 게시에는 별도의 write interface 없이 `InMemoryAiPolicyStore` 구현체를 직접 사용한다.
 
 ## Snapshot Model
 
-Tenant별 Global Policy 전체를 하나의 snapshot으로 관리한다. Tenant별 값을 따로 게시하면 같은 시점에 조회된 정책 집합이 부분적으로 노출될 수 있기 때문이다.
+Tenant별 Global Policy와 tenant/feature별 Feature Policy 전체를 하나의 snapshot으로 관리한다. 두 정책을 따로 게시하면 하나의 평가가 서로 다른 refresh 결과를 조합할 수 있기 때문이다.
 
 Snapshot에는 최소한 다음 상태가 포함된다.
 
@@ -96,10 +98,12 @@ Snapshot에는 최소한 다음 상태가 포함된다.
 public record PolicySnapshot(
         boolean initialized,
         Map<String, Boolean> tenantGlobalPolicies,
+        Map<FeaturePolicyKey, Boolean> featurePolicies,
         Instant loadedAt
 ) {
     public PolicySnapshot {
         tenantGlobalPolicies = Map.copyOf(tenantGlobalPolicies);
+        featurePolicies = Map.copyOf(featurePolicies);
     }
 }
 ```
@@ -113,7 +117,7 @@ public record PolicySnapshot(
 Refresh는 다음 순서로 실행한다.
 
 ```text
-DB에서 tenant별 Global Policy 전체 조회
+DB에서 Global Policy와 Feature Policy 전체 조회
 → 조회 결과 검증
 → 새로운 immutable snapshot 생성
 → AtomicReference를 한 번에 교체
@@ -126,7 +130,7 @@ DB에서 tenant별 Global Policy 전체 조회
 - 조회된 일부 Policy만 기존 snapshot에 병합
 - 검증 실패 결과로 현재 snapshot을 덮어쓰기
 
-하나의 AI 요청은 평가 시작 시 현재 snapshot을 한 번만 읽고 자신의 `tenantId`로 Global Policy를 판단한다. 평가 도중 현재 reference를 반복해서 읽지 않는다. Tenant row가 없으면 OFF로 판단한다.
+하나의 AI 요청은 평가 시작 시 현재 snapshot을 한 번만 읽고 `tenantId`와 feature로 Global → Feature를 판단한다. 평가 도중 현재 reference를 반복해서 읽지 않는다. Global 또는 Feature row가 없으면 OFF로 판단한다.
 
 ## Scheduled Refresh
 
@@ -176,6 +180,8 @@ Repository 예외 또는 validation 실패 시 현재 reference를 변경하지 
 
 - Tenant 식별자가 중복되지 않는다.
 - Tenant 식별자가 비어 있지 않다.
+- Feature 식별자가 지원되는 값이다.
+- 같은 tenant와 feature 조합이 중복되지 않는다.
 - Policy 상태가 지원하는 값이다.
 - 필수 값에 `null`이 없다.
 
@@ -205,7 +211,8 @@ policy.snapshot-refresh-interval=5s
 - 정상 로딩 이후 repository 실패 시 기존 snapshot을 유지한다.
 - Validation 실패 결과가 게시되지 않는다.
 - 전체 tenant 상태가 하나의 snapshot으로 교체된다.
-- Snapshot의 tenant policy collection을 외부에서 수정할 수 없다.
+- Global과 Feature 상태가 하나의 snapshot으로 교체된다.
+- Snapshot의 policy collection을 외부에서 수정할 수 없다.
 
 하나의 정책 평가가 평가 시작 시 조회한 동일한 snapshot instance를 사용하는 것은 구현 원칙으로 유지한다. 현재 Global Policy 평가는 단일 snapshot 조회 후 판단하는 단순한 흐름이므로, provider 호출 횟수 자체는 필수 단위 테스트 대상으로 두지 않는다. 향후 하나의 평가에서 여러 정책 값을 조합해 snapshot 혼합 위험이 생기면 행위 기반 단위 테스트를 추가한다.
 

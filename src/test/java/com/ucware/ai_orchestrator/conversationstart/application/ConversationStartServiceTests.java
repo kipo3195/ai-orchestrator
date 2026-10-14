@@ -30,7 +30,9 @@ import com.ucware.ai_orchestrator.conversationstart.infrastructure.config.Conver
 import com.ucware.ai_orchestrator.conversationstart.infrastructure.repository.InMemoryConversationStartRepository;
 import com.ucware.ai_orchestrator.execution.domain.AiExecutionStatus;
 import com.ucware.ai_orchestrator.policy.application.AiExecutionPolicyService;
-import com.ucware.ai_orchestrator.policy.domain.GlobalAiPolicySnapshot;
+import com.ucware.ai_orchestrator.policy.domain.AiFeature;
+import com.ucware.ai_orchestrator.policy.domain.AiPolicySnapshot;
+import com.ucware.ai_orchestrator.policy.domain.FeaturePolicyKey;
 import com.ucware.ai_orchestrator.policy.domain.UserAiPolicyProvider;
 import com.ucware.ai_orchestrator.policy.domain.UserAiPolicyResolution;
 import com.ucware.ai_orchestrator.policy.domain.UserAiPolicyStatus;
@@ -173,11 +175,47 @@ class ConversationStartServiceTests {
         verify(context.scheduler).schedule(any(), any(), taskCaptor.capture());
 
         // default - false
-        context.policySnapshot.set(GlobalAiPolicySnapshot.initialized(
-                Map.of("default", false), Instant.parse("2026-01-01T00:00:05Z")));
+        context.policySnapshot.set(AiPolicySnapshot.initialized(
+                Map.of("default", false),
+                Map.of(featureKey(), true),
+                Instant.parse("2026-01-01T00:00:05Z")));
 
         // start로직 내부에 Runnable로 구현된 실행 검증
         // ③ 캡처한 Runnable 직접 실행
+        taskCaptor.getValue().run();
+
+        assertThat(execution.getStatus()).isEqualTo(AiExecutionStatus.REJECTED);
+        verify(context.aiPort, never()).generateSuggestion(any());
+    }
+
+    @Test
+    void scheduledExecutionIsRejectedWhenFeaturePolicyTurnsOffBeforeExecution() {
+        TestContext context = new TestContext();
+        ConversationStart execution = context.service.start(
+                "room-session-1", "client-session-1", "user-1", "room-1", "chat");
+        ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+        verify(context.scheduler).schedule(any(), any(), taskCaptor.capture());
+        context.policySnapshot.set(AiPolicySnapshot.initialized(
+                Map.of("default", true),
+                Map.of(featureKey(), false),
+                Instant.parse("2026-01-01T00:00:05Z")));
+
+        taskCaptor.getValue().run();
+
+        assertThat(execution.getStatus()).isEqualTo(AiExecutionStatus.REJECTED);
+        verify(context.aiPort, never()).generateSuggestion(any());
+    }
+
+    @Test
+    void scheduledExecutionIsRejectedWhenOverallUserPolicyIsDisabled() {
+        TestContext context = new TestContext();
+        when(context.userPolicyProvider.resolve("default", "user-1"))
+                .thenReturn(UserAiPolicyResolution.resolved(UserAiPolicyStatus.DISABLED));
+        ConversationStart execution = context.service.start(
+                "room-session-1", "client-session-1", "user-1", "room-1", "chat");
+        ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+        verify(context.scheduler).schedule(any(), any(), taskCaptor.capture());
+
         taskCaptor.getValue().run();
 
         assertThat(execution.getStatus()).isEqualTo(AiExecutionStatus.REJECTED);
@@ -190,9 +228,11 @@ class ConversationStartServiceTests {
         private final ConversationStartScheduler scheduler = mock(ConversationStartScheduler.class);
         private final ConversationStartAiPort aiPort = mock(ConversationStartAiPort.class);
         private final AiResultRouter resultRouter = mock(AiResultRouter.class);
-        private final AtomicReference<GlobalAiPolicySnapshot> policySnapshot =
-                new AtomicReference<>(GlobalAiPolicySnapshot.initialized(
-                        Map.of("default", true), Instant.parse("2026-01-01T00:00:00Z")));
+        private final AtomicReference<AiPolicySnapshot> policySnapshot =
+                new AtomicReference<>(AiPolicySnapshot.initialized(
+                        Map.of("default", true),
+                        Map.of(featureKey(), true),
+                        Instant.parse("2026-01-01T00:00:00Z")));
         private final UserAiPolicyProvider userPolicyProvider =
                 mock(UserAiPolicyProvider.class);
         private final AiExecutionPolicyService policyService =
@@ -217,5 +257,9 @@ class ConversationStartServiceTests {
                         .thenReturn(UserAiPolicyResolution.resolved(
                                 UserAiPolicyStatus.ENABLED));
         }
+    }
+
+    private static FeaturePolicyKey featureKey() {
+        return new FeaturePolicyKey("default", AiFeature.CONVERSATION_START);
     }
 }

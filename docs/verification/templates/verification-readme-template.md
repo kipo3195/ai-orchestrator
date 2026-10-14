@@ -46,6 +46,15 @@
 
 공통 완료 기준은 [Verification 공통 완료 기준](../README.md#공통-완료-기준)을 따른다.
 
+## Coverage Overview
+
+<!--
+조건 분기, 장애 처리 또는 다수 TC의 관계를 한눈에 보여주는 것이 유용한 Verification에서 사용한다.
+단순한 Verification이라면 이 선택 섹션과 Coverage Matrix 파일을 생략할 수 있다.
+-->
+
+[요구사항, 기대 결과, 부수 효과, TC와 자동화 테스트 간의 연결](policy-coverage-matrix.md)을 Coverage Matrix에서 확인한다. Matrix는 탐색용 인덱스이며 상태와 실행 결과는 이 README에서만 관리한다.
+
 ## Test Summary
 
 <!--

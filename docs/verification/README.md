@@ -6,9 +6,9 @@
 
 | 문서 | 범위 |
 |---|---|
-| [001. Global AI Policy Snapshot Unit Verification](001-global-ai-policy-snapshot/README.md) | TC-001~004 단위 테스트 가이드와 후속 통합 테스트 경계 |
+| [001. AI Execution Policy Chain Verification](001-ai-execution-policy-chain/README.md) | Global → Feature → 전체 User Policy의 평가, 저장소 경계와 실제 실행 차단 검증 |
 
-`001`은 Global Policy 구현 단계에서 수행한 검증과 실행 증적을 보존하는 기록이다. 이후 Policy Verification은 Global, Feature, User처럼 개별 정책 컴포넌트마다 추가하지 않고, 정책 평가 체인이 완성되었을 때 실행 허용·거절을 결정하는 전체 흐름을 대상으로 작성한다.
+`001`은 Global-only 단계에서 시작했지만 정책 평가 체인이 완성됨에 따라 Global, Feature와 전체 User Policy의 통합 보장을 검증하는 범위로 확장되었다. Global-only 단계의 실행 증적은 같은 Verification 아래 Historical Evidence로 보존한다.
 
 ## 디렉터리 구성
 
@@ -17,13 +17,15 @@
 ```text
 verification/
 ├── README.md
-└── 001-global-ai-policy-snapshot/
+└── 001-ai-execution-policy-chain/
     ├── README.md
+    ├── policy-coverage-matrix.md
     ├── test-cases/
     │   ├── TC-001.md
     │   ├── TC-002.md
     │   ├── TC-003.md
-    │   └── TC-004.md
+    │   ├── ...
+    │   └── TC-007.md
     └── evidence/
         └── YYYY-MM-DD-<commit>.md
 ```
@@ -35,6 +37,7 @@ verification/
 | 구분 | 역할 |
 |---|---|
 | 검증별 `README.md` | 검증 대상, 전략과 범위, TC 목록, 현재 검증 상태와 최신 전체 실행 evidence 링크의 단일 원천 |
+| `policy-coverage-matrix.md` | 복잡한 조건 분기에서 요구사항, 기대 결과, 부수 효과, TC와 자동화 테스트를 연결하는 선택적 탐색 인덱스 |
 | `test-cases/` | TC별 검증 목적, 위험, Given(어떤 조건)/When(어떤 동작 발생)/Then(어떤 결과), 자동화 테스트 매핑, 단독 실행 명령과 `Last Execution`을 기록 |
 | `evidence/` | Verification 전체 실행의 환경, 명령, Required TC 범위, 상세 집계와 판정을 실행별로 보관 |
 
@@ -46,7 +49,7 @@ verification/
 - **검증 경계:** 테스트로 보장한 범위와 검증하지 않은 범위를 명시한다.
 - **보장 중심:** 모든 기능을 개별 Verification으로 만들지 않는다. 여러 컴포넌트가 함께 제공하는 중요한 시스템 보장과 실제 실행 경계를 검증 단위로 삼는다.
 
-AI 실행 정책의 다음 Verification은 Global, Feature, User Policy의 평가 순서, fail-closed 동작, 저장소 장애와 fallback 격리, 실제 AI 실행 차단을 하나의 통합 범위로 다룬다.
+AI 실행 정책 Verification은 Global, Feature, 전체 User Policy의 평가 순서, fail-closed 동작, 저장소 장애와 fallback 격리, 실제 AI 실행 차단을 하나의 통합 범위로 다룬다.
 
 ## 상태 관리
 
@@ -89,6 +92,7 @@ Verification을 `Verified`로 판정하려면 다음 조건을 모두 만족해�
 
 - [Verification README 템플릿](templates/verification-readme-template.md)
 - [Test Case 템플릿](templates/test-case-template.md)
+- [Policy Coverage Matrix 템플릿](templates/policy-coverage-matrix-template.md)
 
 ## 실행 기록 가이드
 

@@ -3,6 +3,13 @@ CREATE TABLE IF NOT EXISTS ai_global_policy (
     enabled BOOLEAN NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS ai_feature_policy (
+    tenant_id VARCHAR(100) NOT NULL,
+    feature_key VARCHAR(100) NOT NULL,
+    enabled BOOLEAN NOT NULL,
+    PRIMARY KEY (tenant_id, feature_key)
+);
+
 CREATE TABLE IF NOT EXISTS ai_user_policy (
     tenant_id VARCHAR(100) NOT NULL,
     user_id VARCHAR(100) NOT NULL,

@@ -12,7 +12,7 @@ Tenant와 user 식별자를 사용해 User Policy를 조회하고, Redis cache-a
 - Redis cache 조회와 저장
 - JDBC 기반 단건 조회
 - DB fallback 동시 실행 제한
-- `AiExecutionPolicyService.evaluateUser(...)` 평가
+- `AiExecutionPolicyService.evaluateFeatureForUser(...)`의 전체 사용자 정책 평가
 - Conversation Start 실행 직전 User Policy 확인
 - 설정과 테스트 경계
 
@@ -22,10 +22,11 @@ Tenant와 user 식별자를 사용해 User Policy를 조회하고, Redis cache-a
 - 정책 변경 이벤트와 Redis key invalidation 전달 방식
 - Cluster 전체에 적용되는 fallback 동시 실행 상한
 - Retry와 circuit breaker
-- Feature Policy 평가
-- 모든 AI 기능에 Global과 User Policy를 강제 결합하는 통합 평가 메서드
+- 사용자별 기능 정책과 `UserFeaturePolicyProvider`
 
-사용자 식별자가 없는 AI 기능이 존재할 수 있으므로 Global Policy와 User Policy 평가는 독립 메서드로 유지한다. 각 기능의 application flow가 필요한 정책만 명시적으로 조합한다.
+사용자 식별자가 없는 AI 기능이 존재할 수 있으므로 정책 서비스는 `evaluateFeature(...)`와 `evaluateFeatureForUser(...)`를 제공한다. 전자는 Global → Feature를 평가하고, 후자는 같은 평가가 허용된 경우에만 사용자의 전체 AI 사용 정책을 추가로 평가한다.
+
+현재 User Policy는 사용자의 전체 AI 사용 여부만 표현한다. 사용자별 기능 정책을 별도로 설정하고 관리해야 하는 요구가 실제로 생기면 `UserFeaturePolicyProvider`와 `(tenantId, userId, feature)` 저장·캐시 모델을 별도 확장으로 도입한다.
 
 ## Component Boundary
 
@@ -147,7 +148,7 @@ Semaphore는 DB fallback 조회만 보호한다. Redis cache write는 permit 반
 
 ## Policy Evaluation
 
-`AiExecutionPolicyService.evaluateUser(tenantId, userId)`는 다음과 같이 변환한다.
+`AiExecutionPolicyService.evaluateFeatureForUser(tenantId, feature, userId)`는 Global과 Feature가 허용된 뒤 전체 User Policy를 다음과 같이 변환한다.
 
 | Resolution | Decision reason | Allowed |
 | --- | --- | --- |
@@ -165,15 +166,16 @@ Conversation Start는 예약된 AI 호출 직전에 다음 순서로 정책을 �
 ```text
 현재 execution 확인
 → Global Policy 평가
-→ Global 허용 시 User Policy 평가
+→ Global 허용 시 Feature Policy 평가
+→ Feature 허용 시 전체 User Policy 평가
 → execution을 다시 조회해 취소·교체 여부 확인
-→ 두 정책이 모두 허용된 경우에만 EXECUTING 전환
+→ 세 정책이 모두 허용된 경우에만 EXECUTING 전환
 → AI port 호출
 ```
 
 User Policy 조회는 Redis와 DB I/O를 포함할 수 있으므로 `ConversationStartService`의 `synchronized (this)` 밖에서 수행한다. 정책 조회 전후의 짧은 동기화 구간에서 execution이 여전히 실행 가능하고 현재 요청인지 확인하여 조회 중 발생한 취소, 재입장 또는 execution 교체를 반영한다.
 
-Global Policy가 거절되면 User Policy를 조회하지 않는다. User Policy가 없는 AI 기능을 지원하기 위해 `evaluateGlobal(...)`과 `evaluateUser(...)`는 하나의 통합 메서드로 강제하지 않는다.
+Global 또는 Feature Policy가 거절되면 User Policy를 조회하지 않는다. User Policy가 없는 AI 기능은 `evaluateFeature(...)`를 사용하고, 사용자의 전체 AI 정책까지 필요한 기능은 `evaluateFeatureForUser(...)`를 사용한다.
 
 ## Configuration
 
@@ -215,6 +217,7 @@ spring.jdbc.template.query-timeout=2s
 - 같은 key의 동시 cache miss를 하나의 DB 조회로 합치지 않는다.
 - Redis write는 동기 best effort이므로 실패해도 정책 결과는 유지하지만 현재 요청 latency에는 영향을 줄 수 있다.
 - Process-local semaphore는 cluster 전체 fallback 상한을 제공하지 않는다.
+- 사용자별 기능 정책은 현재 관리하지 않는다. 해당 정책의 독립적인 관리 필요가 생길 때 `UserFeaturePolicyProvider`를 도입한다.
 
 ## Related
 

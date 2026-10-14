@@ -22,6 +22,7 @@ import com.ucware.ai_orchestrator.execution.domain.AiExecutionStatus;
 import com.ucware.ai_orchestrator.execution.domain.AiWorkflowType;
 import com.ucware.ai_orchestrator.policy.application.AiExecutionPolicyService;
 import com.ucware.ai_orchestrator.policy.domain.AiExecutionPolicyDecision;
+import com.ucware.ai_orchestrator.policy.domain.AiFeature;
 import com.ucware.ai_orchestrator.result.application.AiResultRouter;
 import com.ucware.ai_orchestrator.result.application.RoutingRefFactory;
 import com.ucware.ai_orchestrator.result.domain.ResultEvent;
@@ -125,14 +126,8 @@ public class ConversationStartService
             userId = execution.getUserId();
         }
         
-        // 실행 정책 조회
-        AiExecutionPolicyDecision globalDecision =
-            policyService.evaluateGlobal(tenantId);
-
-        AiExecutionPolicyDecision userDecision = globalDecision.allowed()
-                ? policyService.evaluateUser(tenantId, userId)
-                : null;
-
+        AiExecutionPolicyDecision policyDecision = policyService.evaluateFeatureForUser(
+                tenantId, AiFeature.CONVERSATION_START, userId);
 
         // 실행 취소, 다른 방 세션 진입, 새 execution으로 교체 점검을 위한 execution 조회
         synchronized (this) {
@@ -143,15 +138,10 @@ public class ConversationStartService
                 return;
             }
             
-            if (!globalDecision.allowed()) {
+            if (!policyDecision.allowed()) {
                 execution.reject();
-                // logging
-                return;
-            }
-
-            if (!userDecision.allowed()) {
-                execution.reject();
-                // logging
+                logger.info("Conversation start AI rejected by policy. executionId={}, reason={}",
+                        executionId, policyDecision.reason());
                 return;
             }
             execution.startExecution();
