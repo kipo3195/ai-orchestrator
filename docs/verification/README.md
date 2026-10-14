@@ -8,6 +8,8 @@
 |---|---|
 | [001. Global AI Policy Snapshot Unit Verification](001-global-ai-policy-snapshot/README.md) | TC-001~004 단위 테스트 가이드와 후속 통합 테스트 경계 |
 
+`001`은 Global Policy 구현 단계에서 수행한 검증과 실행 증적을 보존하는 기록이다. 이후 Policy Verification은 Global, Feature, User처럼 개별 정책 컴포넌트마다 추가하지 않고, 정책 평가 체인이 완성되었을 때 실행 허용·거절을 결정하는 전체 흐름을 대상으로 작성한다.
+
 ## 디렉터리 구성
 
 각 검증 대상은 다음과 같은 구조로 관리한다.
@@ -26,6 +28,8 @@ verification/
         └── YYYY-MM-DD-<commit>.md
 ```
 
+검증 대상 번호별 디렉터리는 같은 구조를 독립적으로 사용한다.
+
 ## 문서별 역할
 
 | 구분 | 역할 |
@@ -40,6 +44,9 @@ verification/
 - **추적 가능성:** TC와 자동화 테스트 코드, 실행 증적을 연결한다.
 - **객관성:** 기대 결과와 실제 실행 결과를 구분한다.
 - **검증 경계:** 테스트로 보장한 범위와 검증하지 않은 범위를 명시한다.
+- **보장 중심:** 모든 기능을 개별 Verification으로 만들지 않는다. 여러 컴포넌트가 함께 제공하는 중요한 시스템 보장과 실제 실행 경계를 검증 단위로 삼는다.
+
+AI 실행 정책의 다음 Verification은 Global, Feature, User Policy의 평가 순서, fail-closed 동작, 저장소 장애와 fallback 격리, 실제 AI 실행 차단을 하나의 통합 범위로 다룬다.
 
 ## 상태 관리
 

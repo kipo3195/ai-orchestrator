@@ -100,9 +100,12 @@ User Policy 변경 주체가 cache invalidation을 지원하면 DB 변경 완료
 ```properties
 policy.user-cache-ttl=5m
 policy.user-negative-cache-ttl=30s
+policy.user-fallback-max-concurrency=4
+spring.data.redis.timeout=500ms
+spring.jdbc.template.query-timeout=2s
 ```
 
-위 값은 형식 예시이며 실제 운영 값은 정책 변경 반영 요구 시간, 요청량과 DB fallback 허용량을 기준으로 결정한다. 두 값은 양수여야 한다.
+위 값은 현재 application 기본값이며 배포 환경에서 재정의할 수 있다. 실제 운영 값은 정책 변경 반영 요구 시간, 요청량, 상위 요청의 latency budget과 DB fallback 허용량을 기준으로 결정한다. TTL과 timeout은 양수여야 하고 fallback 동시 실행 제한은 1 이상이어야 한다.
 
 ## Fallback Isolation
 
@@ -113,6 +116,8 @@ DB fallback에는 별도의 동시 실행 제한을 적용한다. Connection poo
 - Semaphore 획득 성공: DB fallback 수행
 - Semaphore 획득 실패: DB를 호출하지 않고 `USER_POLICY_UNAVAILABLE` 반환
 - DB 조회 완료 또는 실패: `finally` 경계에서 permit 반환
+
+Permit은 DB fallback 조회 범위만 보호한다. DB 조회가 끝나면 Redis cache write 전에 permit을 반환하여 Redis write 지연이나 timeout이 DB fallback 동시 실행 한도를 점유하지 않게 한다. Redis write는 permit 반환 후 현재 요청에서 best effort로 수행하므로 write 지연은 요청 latency에는 포함될 수 있지만 DB fallback permit을 점유하지 않는다.
 
 각 AI Orchestrator instance가 독립된 semaphore를 가지므로 전체 DB fallback 상한은 instance 수에 비례한다. 운영 설정은 instance 수와 DB connection pool 용량을 함께 고려한다.
 
@@ -183,3 +188,4 @@ Circuit breaker와 retry가 필요한 Omni AI 호출의 resilience 정책은 별
 
 - [001. Policy Persistence Access](001-policy-persistence-access.md)
 - [Policy Immutable Snapshot Refresh](../engineering/001-policy-immutable-snapshot-refresh.md)
+- [User Policy Cache-Aside Implementation](../engineering/002-user-policy-cache-aside-implementation.md)

@@ -2,7 +2,7 @@
 
 이 디렉터리는 AI Orchestrator의 구조, 주요 기술 결정, 구현 원칙과 검증 근거를 기록한다.
 
-최종 수정일: 2026-10-09
+최종 수정일: 2026-10-14
 
 문서는 다음 흐름으로 읽을 수 있다.
 
@@ -57,9 +57,10 @@ Architecture → Decisions → Engineering → Verification
 | 문서 | 상태 | 설명 |
 | --- | --- | --- |
 | [001. Policy Immutable Snapshot Refresh](engineering/001-policy-immutable-snapshot-refresh.md) | Draft | Global/Feature Policy를 immutable snapshot으로 갱신하고 원자적으로 게시하는 방식 |
+| [002. User Policy Cache-Aside Implementation](engineering/002-user-policy-cache-aside-implementation.md) | Draft | User Policy의 Redis cache-aside, DB fallback 격리와 기능별 평가 연동 방식 |
 
 ### Verification
 
 | 문서 | 상태 | 설명 |
 | --- | --- | --- |
-| [001. Global AI Policy Snapshot](verification/001-global-ai-policy-snapshot/README.md) | Draft | 초기 상태, 불변 snapshot 교체, 동시 접근, AI 실행 차단 검증 및 증적 가이드 |
+| [001. Global AI Policy Snapshot](verification/001-global-ai-policy-snapshot/README.md) | Verified | 초기 상태, 불변 snapshot 교체, 동시 접근, AI 실행 차단 검증 및 증적 가이드 |

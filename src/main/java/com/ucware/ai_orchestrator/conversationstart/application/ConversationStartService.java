@@ -110,18 +110,48 @@ public class ConversationStartService
 
     private void executeSuggestion(String executionId) {
         ConversationStart execution;
+        String tenantId;
+        String userId;
+
         synchronized (this) {
             execution = repository.findById(executionId).orElse(null);
-            if (execution == null || !execution.isExecutable() || !isCurrentExecution(execution)) {
+            if (execution == null
+                    || !execution.isExecutable()
+                    || !isCurrentExecution(execution)) {
                 return;
             }
 
-            String tenantId = execution.getExecution().getRoutingRef().tenantId();
-            AiExecutionPolicyDecision policyDecision = policyService.evaluateGlobal(tenantId);
-            if (!policyDecision.allowed()) {
+            tenantId = execution.getExecution().getRoutingRef().tenantId();
+            userId = execution.getUserId();
+        }
+        
+        // 실행 정책 조회
+        AiExecutionPolicyDecision globalDecision =
+            policyService.evaluateGlobal(tenantId);
+
+        AiExecutionPolicyDecision userDecision = globalDecision.allowed()
+                ? policyService.evaluateUser(tenantId, userId)
+                : null;
+
+
+        // 실행 취소, 다른 방 세션 진입, 새 execution으로 교체 점검을 위한 execution 조회
+        synchronized (this) {
+            execution = repository.findById(executionId).orElse(null);
+            if (execution == null
+                    || !execution.isExecutable()
+                    || !isCurrentExecution(execution)) {
+                return;
+            }
+            
+            if (!globalDecision.allowed()) {
                 execution.reject();
-                logger.warn("Conversation start AI rejected by policy. executionId={}, tenantId={}, reason={}",
-                        executionId, tenantId, policyDecision.reason());
+                // logging
+                return;
+            }
+
+            if (!userDecision.allowed()) {
+                execution.reject();
+                // logging
                 return;
             }
             execution.startExecution();

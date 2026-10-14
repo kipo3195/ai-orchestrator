@@ -2,6 +2,7 @@ package com.ucware.ai_orchestrator.conversationstart.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -30,6 +31,9 @@ import com.ucware.ai_orchestrator.conversationstart.infrastructure.repository.In
 import com.ucware.ai_orchestrator.execution.domain.AiExecutionStatus;
 import com.ucware.ai_orchestrator.policy.application.AiExecutionPolicyService;
 import com.ucware.ai_orchestrator.policy.domain.GlobalAiPolicySnapshot;
+import com.ucware.ai_orchestrator.policy.domain.UserAiPolicyProvider;
+import com.ucware.ai_orchestrator.policy.domain.UserAiPolicyResolution;
+import com.ucware.ai_orchestrator.policy.domain.UserAiPolicyStatus;
 import com.ucware.ai_orchestrator.result.application.AiResultRouter;
 import com.ucware.ai_orchestrator.result.application.RoutingRefFactory;
 import com.ucware.ai_orchestrator.result.domain.ResultEvent;
@@ -189,8 +193,12 @@ class ConversationStartServiceTests {
         private final AtomicReference<GlobalAiPolicySnapshot> policySnapshot =
                 new AtomicReference<>(GlobalAiPolicySnapshot.initialized(
                         Map.of("default", true), Instant.parse("2026-01-01T00:00:00Z")));
+        private final UserAiPolicyProvider userPolicyProvider =
+                mock(UserAiPolicyProvider.class);
         private final AiExecutionPolicyService policyService =
-                new AiExecutionPolicyService(policySnapshot::get);
+                new AiExecutionPolicyService(
+                        policySnapshot::get,
+                        userPolicyProvider);
         private final ConversationStartService service = new ConversationStartService(
                 repository,
                 scheduler,
@@ -203,5 +211,11 @@ class ConversationStartServiceTests {
                                 Map.of(), "/internal/v1/ai-results",
                                 Duration.ofSeconds(3), Duration.ofSeconds(5)))),
                 policyService);
+
+        private TestContext() {
+                when(userPolicyProvider.resolve(anyString(), anyString()))
+                        .thenReturn(UserAiPolicyResolution.resolved(
+                                UserAiPolicyStatus.ENABLED));
+        }
     }
 }
