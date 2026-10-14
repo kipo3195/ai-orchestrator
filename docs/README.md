@@ -63,4 +63,4 @@ Architecture → Decisions → Engineering → Verification
 
 | 문서 | 상태 | 설명 |
 | --- | --- | --- |
-| [001. AI Execution Policy Chain](verification/001-ai-execution-policy-chain/README.md) | Draft | Global → Feature → 전체 User Policy의 통합 평가와 AI 실행 차단 검증 |
+| [001. AI Execution Policy Chain](verification/001-ai-execution-policy-chain/README.md) | Verified | Global → Feature → 전체 User Policy의 통합 평가와 AI 실행 차단 검증 |

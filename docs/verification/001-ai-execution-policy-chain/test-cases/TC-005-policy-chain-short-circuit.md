@@ -90,13 +90,13 @@ Required 여부, 자동화 상태와 `Last Verification Execution` 기준 실행
 
 | 항목 | 값 |
 |---|---|
-| Executed At | 2026-10-14 17:03 KST |
-| Commit | `0c85a21` + uncommitted changes |
-| Working Tree | Dirty |
+| Executed At | 2026-10-14 17:45 KST |
+| Commit | `ac204af` |
+| Working Tree | Clean |
 | Environment | Java 17.0.19, Gradle 9.7.1 |
 | Command | 상위 Verification Tests 명령 |
-| Execution Scope | Verification preliminary |
-| Parent Execution / Evidence | `build/reports/tests/test/index.html` |
+| Execution Scope | Verification |
+| Parent Execution / Evidence | [2026-10-14 verification execution](../evidence/2026-10-14-ac204af.md) |
 | Result | Passed |
 | Passed / Failed / Skipped | 5 / 0 / 0 |
 
@@ -108,4 +108,3 @@ Required 여부, 자동화 상태와 `Last Verification Execution` 기준 실행
 ## Limitations
 
 - 현재 User Policy는 전체 AI 사용 여부이며 사용자별 Feature Policy는 평가하지 않는다.
-- Dirty working tree 실행이므로 상위 Verification 완료 판정 evidence로 사용하지 않는다.

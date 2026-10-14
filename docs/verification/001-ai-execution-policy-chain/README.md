@@ -2,9 +2,9 @@
 
 | 항목 | 값 |
 |---|---|
-| Status | Draft |
-| Last Verified At | - |
-| Verified Commit | - |
+| Status | Verified |
+| Last Verified At | 2026-10-14 17:45 KST |
+| Verified Commit | `ac204af` |
 | Stale Since | - |
 | Stale Reason | - |
 
@@ -86,13 +86,13 @@ Domain과 Application 단위 테스트로 snapshot 불변성, 정책 결정 행�
 
 | TC ID | 검증 항목 | 테스트 수준 | Required | 자동화 상태 | 실행 결과 |
 |---|---|---|---|---|---|
-| TC-001 | [Snapshot 초기 상태](test-cases/TC-001-snapshot-initialization.md) | Unit | Yes | Automated | Not Run |
-| TC-002 | [Snapshot refresh와 게시](test-cases/TC-002-snapshot-refresh-and-publication.md) | Unit / Integration | Yes | Automated | Not Run |
-| TC-003 | [Global/Feature 평가](test-cases/TC-003-global-feature-evaluation.md) | Unit | Yes | Automated | Not Run |
-| TC-004 | [User Policy resolution](test-cases/TC-004-user-policy-resolution.md) | Unit / Integration | Yes | Automated | Not Run |
-| TC-005 | [정책 체인 short-circuit](test-cases/TC-005-policy-chain-short-circuit.md) | Unit | Yes | Automated | Not Run |
-| TC-006 | [Conversation Start 실행 차단](test-cases/TC-006-conversation-start-enforcement.md) | Workflow | Yes | Automated | Not Run |
-| TC-007 | [동시 snapshot 게시](test-cases/TC-007-concurrent-snapshot-publication.md) | Unit | Yes | Automated | Not Run |
+| TC-001 | [Snapshot 초기 상태](test-cases/TC-001-snapshot-initialization.md) | Unit | Yes | Automated | Passed |
+| TC-002 | [Snapshot refresh와 게시](test-cases/TC-002-snapshot-refresh-and-publication.md) | Unit / Integration | Yes | Automated | Passed |
+| TC-003 | [Global/Feature 평가](test-cases/TC-003-global-feature-evaluation.md) | Unit | Yes | Automated | Passed |
+| TC-004 | [User Policy resolution](test-cases/TC-004-user-policy-resolution.md) | Unit / Integration | Yes | Automated | Passed |
+| TC-005 | [정책 체인 short-circuit](test-cases/TC-005-policy-chain-short-circuit.md) | Unit | Yes | Automated | Passed |
+| TC-006 | [Conversation Start 실행 차단](test-cases/TC-006-conversation-start-enforcement.md) | Workflow | Yes | Automated | Passed |
+| TC-007 | [동시 snapshot 게시](test-cases/TC-007-concurrent-snapshot-publication.md) | Unit | Yes | Automated | Passed |
 
 ## Execution Guide
 
@@ -128,13 +128,13 @@ Domain과 Application 단위 테스트로 snapshot 불변성, 정책 결정 행�
 
 ## Last Verification Execution
 
-- Execution Summary: -
+- Execution Summary: [2026-10-14 verification execution](evidence/2026-10-14-ac204af.md)
 
-통합 정책 체인 기준의 clean commit 전체 실행 evidence는 아직 생성하지 않았다. 2026-10-14의 dirty working tree 사전 실행은 모든 매핑 테스트가 통과했지만 완료 판정에는 사용하지 않는다.
+구현·테스트·Draft 문서가 포함된 clean commit `ac204af`에서 모든 Required TC와 전체 회귀 테스트를 실행했다. 실행 후 작성한 evidence와 상태 변경은 별도 기록 커밋으로 관리한다.
 
 ## Evidence
 
-- Local Report: -
+- Local Report: `build/reports/tests/test/index.html`
 - CI Run: -
 - Historical Global-only Execution: [2026-10-13 verification execution](evidence/2026-10-13-2707097.md)
 
@@ -147,7 +147,6 @@ Domain과 Application 단위 테스트로 snapshot 불변성, 정책 결정 행�
 | 운영 DB schema 및 driver 미검증 | Feature key, boolean과 transaction 동작이 H2와 다를 수 있다. | 운영 DB 확정 전 수용 | 운영 DB integration test |
 | 실제 Redis 장애/timeout 미검증 | Mock이 실제 client timeout과 connection failure를 재현하지 못한다. | 후속 테스트 필요 | TC-004의 Unverified Boundary |
 | 사용자별 기능 정책 미구현 | 사용자 단위로 특정 기능만 제어할 수 없다. | 현재 요구사항 범위 밖 | 관리 요구 발생 시 `UserFeaturePolicyProvider` 도입 |
-| Dirty working tree 사전 실행만 존재 | 현재 소스 상태를 commit으로 재현할 공식 evidence가 없다. | `Draft` 유지 | commit 후 Verification Tests 재실행 |
 
 ## Unverified Boundaries and Follow-up Tests
 
@@ -161,19 +160,23 @@ Domain과 Application 단위 테스트로 snapshot 불변성, 정책 결정 행�
 
 ## Overall Assessment
 
-- Assessment Scope: Documentation and Automated Test Mapping
-- Basis: 통합 정책 체인 기준의 Verification과 Required TC 매핑은 작성됐고 dirty working tree 사전 실행에서 49개 테스트가 통과했으나, clean commit 전체 실행 evidence는 아직 없다.
+- Assessment Scope: Unit, H2 JDBC Integration Slice, Workflow Unit and JVM Concurrency
+- Basis: clean commit `ac204af`에서 모든 Required TC를 포함하는 Verification Tests 49개와 전체 회귀 테스트 66개가 실패·skip 없이 통과했다.
 
 ### Verified Behaviors
 
-- None. `Last Verification Execution`에 연결된 공식 evidence가 아직 없다.
+- Global → Feature → 전체 User Policy 순서의 허용·거절과 결정 사유
+- 상위 정책 거절 및 사용자 없는 평가에서 하위 User Provider를 호출하지 않는 short-circuit
+- 미초기화, 정책 누락과 User 저장소 unavailable 상태의 fail-closed
+- Global/Feature 불변 snapshot의 전체 교체, refresh 실패 시 마지막 정상 상태 유지와 JVM 내 원자적 게시
+- User Policy의 Redis cache-aside, 제한된 DB fallback, negative cache와 cache write best effort
+- Conversation Start 실행 직전 정책 재평가와 정책 거절 시 AI port 호출 차단
 
 ### Remaining Limitations
 
-- Clean commit 기반 전체 실행과 evidence 작성이 필요하다.
 - 운영 DB, 실제 Redis, scheduler 및 HTTP adapter 연결 경계는 검증하지 않았다.
 - 사용자별 기능 정책은 현재 범위에 포함되지 않는다.
 
 ### Conclusion
 
-검증 범위, Required TC와 자동화 매핑은 준비됐지만 공통 완료 기준의 clean commit 실행 evidence가 없으므로 현재 `Verified`로 판정할 수 없다. 변경을 commit한 뒤 `Verification Tests`를 다시 실행하고 evidence와 각 TC의 `Last Execution`을 갱신해야 한다.
+clean commit `ac204af`에서 모든 Required TC와 전체 회귀 테스트가 통과했으므로 현재 정의된 자동화 검증 범위에서 `Verified`로 판정한다. 운영 DB, 실제 Redis와 외부 adapter를 포함하는 통합 경계는 후속 검증 대상으로 유지한다.

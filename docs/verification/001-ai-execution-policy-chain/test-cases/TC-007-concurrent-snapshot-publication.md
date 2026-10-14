@@ -85,13 +85,13 @@ Required 여부, 자동화 상태와 `Last Verification Execution` 기준 실행
 
 | 항목 | 값 |
 |---|---|
-| Executed At | 2026-10-14 17:03 KST |
-| Commit | `0c85a21` + uncommitted changes |
-| Working Tree | Dirty |
+| Executed At | 2026-10-14 17:45 KST |
+| Commit | `ac204af` |
+| Working Tree | Clean |
 | Environment | Java 17.0.19, Gradle 9.7.1 |
 | Command | 상위 Verification Tests 명령 |
-| Execution Scope | Verification preliminary |
-| Parent Execution / Evidence | `build/reports/tests/test/index.html` |
+| Execution Scope | Verification |
+| Parent Execution / Evidence | [2026-10-14 verification execution](../evidence/2026-10-14-ac204af.md) |
 | Result | Passed |
 | Passed / Failed / Skipped | 1 / 0 / 0 |
 
@@ -104,4 +104,3 @@ Required 여부, 자동화 상태와 `Last Verification Execution` 기준 실행
 
 - 제한된 thread 수와 반복 횟수의 회귀 테스트이며 가능한 모든 JVM interleaving을 증명하지 않는다.
 - 여러 Orchestrator instance 사이의 snapshot 일관성은 검증하지 않는다.
-- Dirty working tree 실행이므로 상위 Verification 완료 판정 evidence로 사용하지 않는다.

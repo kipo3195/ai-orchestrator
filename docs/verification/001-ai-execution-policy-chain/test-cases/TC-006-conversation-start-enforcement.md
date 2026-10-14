@@ -95,13 +95,13 @@ Conversation Start가 예약 실행 직전에 Global → `CONVERSATION_START` Fe
 
 | 항목 | 값 |
 |---|---|
-| Executed At | 2026-10-14 17:03 KST |
-| Commit | `0c85a21` + uncommitted changes |
-| Working Tree | Dirty |
+| Executed At | 2026-10-14 17:45 KST |
+| Commit | `ac204af` |
+| Working Tree | Clean |
 | Environment | Java 17.0.19, Gradle 9.7.1 |
 | Command | 상위 Verification Tests 명령 |
-| Execution Scope | Verification preliminary |
-| Parent Execution / Evidence | `build/reports/tests/test/index.html` |
+| Execution Scope | Verification |
+| Parent Execution / Evidence | [2026-10-14 verification execution](../evidence/2026-10-14-ac204af.md) |
 | Result | Passed |
 | Passed / Failed / Skipped | 5 / 0 / 0 |
 
@@ -114,4 +114,3 @@ Conversation Start가 예약 실행 직전에 Global → `CONVERSATION_START` Fe
 
 - Scheduler는 Mock이며 실제 예약 시간과 thread scheduling을 검증하지 않는다.
 - AI port와 result delivery는 실제 HTTP 통신이 아니다.
-- Dirty working tree 실행이므로 상위 Verification 완료 판정 evidence로 사용하지 않는다.
