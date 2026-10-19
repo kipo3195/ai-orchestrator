@@ -50,13 +50,18 @@ public class RedisRealtimeConnectionResolver implements RealtimeConnectionResolv
             RealtimeConnectionRecord connection = new RealtimeConnectionRecord(
                     stringValue(connectionValues.get("userId")),
                     stringValue(connectionValues.get("clientSessionId")),
-                    stringValue(connectionValues.get("ownerInstanceId")));
+                    stringValue(connectionValues.get("ownerInstanceId")),
+                    integerValue(connectionValues.get("connectionType")));
             String confirmedCurrentConnectionId = redisTemplate.opsForValue().get(currentKey);
             if (!connectionId.equals(confirmedCurrentConnectionId)) {
                 continue;
             }
             if (!routingRef.userId().equals(connection.userId())
                     || !routingRef.clientSessionId().equals(connection.clientSessionId())) {
+                return Optional.empty();
+            }
+            if (routingRef.connectionType() != null
+                    && !routingRef.connectionType().equals(connection.connectionType())) {
                 return Optional.empty();
             }
             if (!hasText(connection.ownerInstanceId())) {
@@ -75,9 +80,24 @@ public class RedisRealtimeConnectionResolver implements RealtimeConnectionResolv
         return value != null && !value.isBlank();
     }
 
+    private static Integer integerValue(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value instanceof String string && !string.isBlank()) {
+            try {
+                return Integer.valueOf(string);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     private record RealtimeConnectionRecord(
             String userId,
             String clientSessionId,
-            String ownerInstanceId) {
+            String ownerInstanceId,
+            Integer connectionType) {
     }
 }

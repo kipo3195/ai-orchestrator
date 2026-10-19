@@ -65,6 +65,29 @@ class RedisRealtimeConnectionResolverTests {
     }
 
     @Test
+    void rejectsConnectionRecordFromDifferentConnectionType() {
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        @SuppressWarnings("unchecked")
+        ValueOperations<String, String> values = mock(ValueOperations.class);
+        @SuppressWarnings("unchecked")
+        HashOperations<String, Object, Object> hashes = mock(HashOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(values);
+        when(redisTemplate.opsForHash()).thenReturn(hashes);
+        when(values.get("rt:client-session-current:default:user-1:client-session-1"))
+                .thenReturn("connection-1");
+        when(hashes.entries("rt:connection:default:connection-1"))
+                .thenReturn(Map.of(
+                        "userId", "user-1",
+                        "clientSessionId", "client-session-1",
+                        "ownerInstanceId", "realtime-2",
+                        "connectionType", "2"));
+        RedisRealtimeConnectionResolver resolver = new RedisRealtimeConnectionResolver(redisTemplate);
+
+        assertThat(resolver.resolve(RoutingRef.forClientSession(
+                "default", "user-1", "client-session-1", null, 1))).isEmpty();
+    }
+
+    @Test
     void retriesWhenCurrentConnectionChangesDuringResolution() {
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
         @SuppressWarnings("unchecked")

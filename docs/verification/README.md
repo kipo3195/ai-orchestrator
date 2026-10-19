@@ -7,6 +7,7 @@
 | 문서 | 범위 |
 |---|---|
 | [001. AI Execution Policy Chain Verification](001-ai-execution-policy-chain/README.md) | Global → Feature → 전체 User Policy의 평가, 저장소 경계와 실제 실행 차단 검증 |
+| [002. Returned Message Lifecycle Persistence Verification](002-returned-message-lifecycle-persistence/README.md) | Returned Message lifecycle의 저장 임계점, 생성 멱등성, 원자적 상태 전이, DB 시각 기반 만료와 재시작 복구 검증 |
 
 `001`은 Global-only 단계에서 시작했지만 정책 평가 체인이 완성됨에 따라 Global, Feature와 전체 User Policy의 통합 보장을 검증하는 범위로 확장되었다. Global-only 단계의 실행 증적은 같은 Verification 아래 Historical Evidence로 보존한다.
 

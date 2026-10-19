@@ -2,7 +2,7 @@
 
 이 디렉터리는 AI Orchestrator의 구조, 주요 기술 결정, 구현 원칙과 검증 근거를 기록한다.
 
-최종 수정일: 2026-10-14
+최종 수정일: 2026-10-19
 
 문서는 다음 흐름으로 읽을 수 있다.
 
@@ -51,6 +51,8 @@ Architecture → Decisions → Engineering → Verification
 | --- | --- | --- |
 | [001. Policy Persistence Access](decisions/001-policy-persistence-access.md) | Accepted | 읽기 전용 Policy 저장소 접근에 Spring `JdbcClient`를 사용하는 결정 |
 | [002. User Policy Cache-Aside and Fallback Isolation](decisions/002-user-policy-cache-aside-and-fallback-isolation.md) | Accepted | Redis cache-aside, DB fallback, fail-closed 및 동시 실행 제한 정책 |
+| [003. Returned Message Lifecycle Persistence and Concurrency Control](decisions/003-returned-message-lifecycle-persistence.md) | Proposed | Orchestrator 소유 RDB와 DB 제약·조건부 갱신으로 Returned Message lifecycle 생성 및 상태 전이 경쟁을 제어하는 결정 |
+| [004. AI Execution Dispatch, Idempotency, Cancellation and Recovery](decisions/004-ai-execution-dispatch-idempotency-and-recovery.md) | Proposed | Stable execution ID와 멱등 command·reconciliation으로 Omni AI 실행의 전송 불확실성, 취소와 복구를 관리하는 결정 |
 
 ### Engineering
 
@@ -58,9 +60,11 @@ Architecture → Decisions → Engineering → Verification
 | --- | --- | --- |
 | [001. Policy Immutable Snapshot Refresh](engineering/001-policy-immutable-snapshot-refresh.md) | Draft | Global/Feature Policy를 immutable snapshot으로 갱신하고 원자적으로 게시하는 방식 |
 | [002. User Policy Cache-Aside Implementation](engineering/002-user-policy-cache-aside-implementation.md) | Draft | User Policy의 Redis cache-aside, DB fallback 격리와 기능별 평가 연동 방식 |
+| [003. Returned Message Lifecycle Processing](engineering/003-returned-message-lifecycle-processing.md) | Draft | Returned Message 실행 후보 선정, 상태 전이, 사용자 확인, AI 실행 correlation과 결과 전달 구현 경계 |
 
 ### Verification
 
 | 문서 | 상태 | 설명 |
 | --- | --- | --- |
 | [001. AI Execution Policy Chain](verification/001-ai-execution-policy-chain/README.md) | Verified | Global → Feature → 전체 User Policy의 통합 평가와 AI 실행 차단 검증 |
+| [002. Returned Message Lifecycle Persistence](verification/002-returned-message-lifecycle-persistence/README.md) | Draft | Returned Message lifecycle의 저장 임계점, DB 제약 기반 생성 멱등성, 조건부 상태 전이, 만료와 복구 검증 설계 |

@@ -4,7 +4,8 @@ import java.util.Arrays;
 
 public enum AiFeature {
 
-    CONVERSATION_START("conversation-start");
+    CONVERSATION_START("conversation-start"),
+    RETURNED_MESSAGE_TOPICS("returned-message-topics");
 
     private final String key;
 
