@@ -8,8 +8,10 @@ import org.springframework.stereotype.Service;
 
 import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGateway;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository;
+import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageSelectionRepository;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageConfirmation;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageLifecycle;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageSelection;
 
 @Service
 public class ReturnedMessageConfirmationService implements HandleReturnedMessageConfirmation {
@@ -17,16 +19,19 @@ public class ReturnedMessageConfirmationService implements HandleReturnedMessage
     private static final Logger logger = LoggerFactory.getLogger(ReturnedMessageConfirmationService.class);
 
     private final ReturnedMessageRepository repository;
+    private final ReturnedMessageSelectionRepository selectionRepository;
     private final ReturnedMessageAccessEvaluator accessEvaluator;
     private final AiExecutionGateway executionGateway;
     private final HandleReturnedMessageExecutionResult executionResultHandler;
 
     public ReturnedMessageConfirmationService(
             ReturnedMessageRepository repository,
+            ReturnedMessageSelectionRepository selectionRepository,
             ReturnedMessageAccessEvaluator accessEvaluator,
             AiExecutionGateway executionGateway,
             HandleReturnedMessageExecutionResult executionResultHandler) {
         this.repository = repository;
+        this.selectionRepository = selectionRepository;
         this.accessEvaluator = accessEvaluator;
         this.executionGateway = executionGateway;
         this.executionResultHandler = executionResultHandler;
@@ -98,6 +103,7 @@ public class ReturnedMessageConfirmationService implements HandleReturnedMessage
                     : ReturnedMessageOperationResult.existing(load(lifecycle));
         }
 
+        ReturnedMessageSelection selection = loadSelection(lifecycle, true);
         String executionId = UUID.randomUUID().toString();
         boolean transitioned = repository.startProcessing(
                 lifecycle.tenantId(),
@@ -110,18 +116,20 @@ public class ReturnedMessageConfirmationService implements HandleReturnedMessage
         }
 
         ReturnedMessageLifecycle processing = load(lifecycle);
-        dispatch(processing);
+        dispatch(processing, selection);
         return ReturnedMessageOperationResult.updated(load(lifecycle));
     }
 
     void redispatch(ReturnedMessageLifecycle lifecycle) {
-        dispatch(lifecycle);
+        dispatch(lifecycle, loadSelection(lifecycle, false));
     }
 
-    private void dispatch(ReturnedMessageLifecycle lifecycle) {
+    private void dispatch(
+            ReturnedMessageLifecycle lifecycle,
+            ReturnedMessageSelection selection) {
         AiExecutionGateway.ExecutionResult dispatchResult;
         try {
-            dispatchResult = executionGateway.start(command(lifecycle));
+            dispatchResult = executionGateway.start(command(lifecycle, selection));
         } catch (RuntimeException exception) {
             logger.warn("Returned Message AI dispatch is uncertain. requestId={}, executionId={}",
                     lifecycle.requestId(), lifecycle.executionId(), exception);
@@ -140,7 +148,9 @@ public class ReturnedMessageConfirmationService implements HandleReturnedMessage
         }
     }
 
-    AiExecutionGateway.ExecutionCommand command(ReturnedMessageLifecycle lifecycle) {
+    AiExecutionGateway.ExecutionCommand command(
+            ReturnedMessageLifecycle lifecycle,
+            ReturnedMessageSelection selection) {
         return new AiExecutionGateway.ExecutionCommand(
                 lifecycle.requestId(),
                 lifecycle.triggerId(),
@@ -149,7 +159,34 @@ public class ReturnedMessageConfirmationService implements HandleReturnedMessage
                 lifecycle.userId(),
                 lifecycle.absencePeriodId(),
                 lifecycle.messageSelectionRef(),
+                selection.items(),
                 lifecycle.routingRef());
+    }
+
+    private ReturnedMessageSelection loadSelection(
+            ReturnedMessageLifecycle lifecycle,
+            boolean activeOnly) {
+        var selection = activeOnly
+                ? selectionRepository.findOwnedActive(
+                        lifecycle.messageSelectionRef(),
+                        lifecycle.requestId(),
+                        lifecycle.tenantId(),
+                        lifecycle.userId(),
+                        lifecycle.absencePeriodId())
+                : selectionRepository.findOwned(
+                        lifecycle.messageSelectionRef(),
+                        lifecycle.requestId(),
+                        lifecycle.tenantId(),
+                        lifecycle.userId(),
+                        lifecycle.absencePeriodId());
+        ReturnedMessageSelection found = selection.orElseThrow(() ->
+                new ReturnedMessagePersistenceException(
+                        "Returned Message selection is unavailable", null));
+        if (found.items().size() != lifecycle.unreadCount()) {
+            throw new ReturnedMessagePersistenceException(
+                    "Returned Message selection item count does not match lifecycle", null);
+        }
+        return found;
     }
 
     private void validateCorrelation(

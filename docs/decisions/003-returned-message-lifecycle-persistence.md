@@ -58,6 +58,8 @@ Application Service의 `synchronized`, 사용자별 lock 또는 process-local sc
 
 Returned Message Topics의 durable lifecycle은 AI Orchestrator가 논리적으로 소유하는 관계형 persistence 영역에 저장한다. Infrastructure repository는 Spring `JdbcClient`를 사용한다.
 
+Message owner가 별도의 selection reference를 제공하지 않는 경우 AI Orchestrator는 조회 시점의 외부 메시지 식별자 집합도 같은 persistence 영역에 저장한다. `returned_message_selection`은 UUID 기반 `messageSelectionRef`와 owner, 만료 시각을 보관하고 `returned_message_selection_item`은 하나의 선택에 포함된 source item key를 1:N으로 보관한다. 이는 AI 실행 입력을 재현하기 위한 참조 스냅샷이며 Messenger 메시지 본문이나 읽음 상태의 소유권을 가져오는 것은 아니다.
+
 이 lifecycle 저장소는 [001. Policy Persistence Access](001-policy-persistence-access.md)의 읽기 전용 Policy 저장소와 소유권이 다르다. 같은 데이터베이스 제품이나 물리적 cluster를 사용할 수는 있지만 AI Orchestrator가 lifecycle table과 migration을 소유하며 Policy table에 쓰지 않는다. 실제 datasource 분리와 데이터베이스 제품은 배포 설계에서 결정한다.
 
 Application 또는 Domain에는 lifecycle 생성, 조회와 허용된 상태 전이를 표현하는 기술 독립적인 repository interface를 둔다. JDBC 구현, persistence row mapping, unique constraint 해석과 SQL은 Infrastructure에 둔다.
@@ -80,7 +82,7 @@ External AI execution
 
 ### Persistence threshold
 
-모든 Presence 변경을 저장하지 않는다. 요청 계약, trusted connection, 부재 구간, Trigger 유효기간과 실행 Policy를 확인해 AI 실행 후보가 된 요청만 lifecycle 생성을 시도한다.
+모든 Presence 변경을 저장하지 않는다. Messenger Client Ingress가 적용 대상 connection과 Presence 전이를 확정해 만든 source-qualified Event를 입력으로 받는다. AI Orchestrator는 필수 routing 값과 시간 관계, 부재 구간, Trigger 유효기간과 실행 Policy를 확인해 AI 실행 후보가 된 요청만 lifecycle 생성을 시도하며, legacy `connectionType`의 값별 의미는 재판정하지 않는다.
 
 Lifecycle은 Message Query나 Realtime delivery처럼 외부 I/O를 시작하기 전에 생성한다. 동일 lifecycle을 새로 생성할 권한을 얻은 처리자만 최초 작업을 진행한다. 정확한 eligibility 검사 순서, 재평가 시점과 중복 요청 응답은 [003. Returned Message Lifecycle Processing](../engineering/003-returned-message-lifecycle-processing.md)에서 정의한다.
 
@@ -148,6 +150,7 @@ Lifecycle insert와 각 conditional update는 짧은 DB transaction으로 실행
 - DB 안에서 경쟁하는 상태 전이의 단일 성공
 - 사용자 응답과 만료의 일관된 판정
 - lifecycle 상태의 process 재시작 후 복원
+- 사용자 확인 전 확정된 source item key 집합의 process 재시작 후 복원
 
 이 결정만으로 Omni AI Server의 실행이나 Realtime delivery가 정확히 한 번 수행되는 것은 보장하지 않는다. 외부 호출의 불확실한 결과, 실행 취소, 재시도와 복구는 Decision 004의 stable execution ID와 reconciliation 계약을 적용한다.
 
@@ -165,6 +168,7 @@ Lifecycle insert와 각 conditional update는 짧은 DB transaction으로 실행
 ### Negative
 
 - Lifecycle table, index, migration과 retention 관리가 필요하다.
+- Selection과 selection item table의 만료 데이터 정리 및 retention 관리가 필요하다.
 - Unique constraint 충돌과 conditional update `0`건을 정상적인 멱등 결과 또는 계약 위반으로 구분해야 한다.
 - DB 시각을 사용하는 SQL과 만료 처리에 대한 integration test가 필요하다.
 - 외부 호출의 멱등성과 복구를 위해 Decision 004의 Omni AI Server 계약이 추가로 필요하다.

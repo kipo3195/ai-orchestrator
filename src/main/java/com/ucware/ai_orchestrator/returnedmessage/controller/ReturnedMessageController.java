@@ -112,6 +112,7 @@ public class ReturnedMessageController {
         }
     }
 
+    // 클래스 내부에 선언한 record는 암묵적으로 static이기 때문에 외부 Controller 인스턴스를 참조하지 않음
     public record UserReturnedHttpRequest(
             @NotBlank String requestId,
             @NotBlank String triggerId,
@@ -159,6 +160,8 @@ public class ReturnedMessageController {
             Instant confirmationExpiresAt,
             String executionId) {
 
+        // ReturnedMessageResponse를 new로 생성하기 전에 ReturnedMessageResponse.from을 호출하게 하는
+        // 정적 팩토리 함수
         static ReturnedMessageResponse from(ReturnedMessageOperationResult result) {
             ReturnedMessageLifecycle lifecycle = result.lifecycle();
             return new ReturnedMessageResponse(

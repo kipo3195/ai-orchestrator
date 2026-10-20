@@ -1,6 +1,9 @@
 package com.ucware.ai_orchestrator.returnedmessage.application.port;
 
+import java.util.List;
+
 import com.ucware.ai_orchestrator.result.domain.RoutingRef;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageSelection;
 
 public interface AiExecutionGateway {
 
@@ -16,7 +19,12 @@ public interface AiExecutionGateway {
             String userId,
             String absencePeriodId,
             String messageSelectionRef,
+            List<ReturnedMessageSelection.Item> selectedItems,
             RoutingRef routingRef) {
+
+        public ExecutionCommand {
+            selectedItems = List.copyOf(selectedItems);
+        }
     }
 
     record ExecutionResult(

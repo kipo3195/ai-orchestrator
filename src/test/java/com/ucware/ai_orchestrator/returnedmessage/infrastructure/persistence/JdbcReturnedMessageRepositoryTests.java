@@ -37,6 +37,8 @@ class JdbcReturnedMessageRepositoryTests {
 
     @AfterEach
     void cleanUp() {
+        jdbcTemplate.update("DELETE FROM returned_message_selection_item");
+        jdbcTemplate.update("DELETE FROM returned_message_selection");
         jdbcTemplate.update("DELETE FROM returned_message_request");
     }
 

@@ -15,8 +15,8 @@ public class ReturnedMessagePortsConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    ReturnedMessagePermissionChecker unavailableReturnedMessagePermissionChecker() {
-        return request -> ReturnedMessagePermissionChecker.Decision.UNAVAILABLE;
+    ReturnedMessagePermissionChecker allowingReturnedMessagePermissionChecker() {
+        return request -> ReturnedMessagePermissionChecker.Decision.ALLOWED;
     }
 
     @Bean

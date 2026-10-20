@@ -391,7 +391,7 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                         WHERE status = 'AWAITING_CONFIRMATION'
                           AND confirmation_expires_at <= CURRENT_TIMESTAMP
                         ORDER BY confirmation_expires_at, tenant_id, request_id
-                        FETCH FIRST %d ROWS ONLY
+                        LIMIT %d
                         """.formatted(positiveBatchSize(batchSize)))
                 .query((resultSet, rowNumber) -> new LifecycleKey(
                         resultSet.getString("tenant_id"),
@@ -500,7 +500,7 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                         WHERE status IN %s
                           AND (claim_until IS NULL OR claim_until <= CURRENT_TIMESTAMP)
                         ORDER BY updated_at, tenant_id, request_id
-                        FETCH FIRST %d ROWS ONLY
+                        LIMIT %d
                         """.formatted(NON_TERMINAL_STATUSES, positiveBatchSize(batchSize)))
                 .query(this::mapRow)
                 .list();

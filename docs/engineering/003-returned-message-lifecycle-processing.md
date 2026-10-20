@@ -46,12 +46,14 @@ returnedmessage/
 │   ├── ExpireReturnedMessageConfirmations
 │   └── port
 │       ├── ReturnedMessageRepository
+│       ├── ReturnedMessageSelectionRepository
 │       ├── ReturnedMessageQuery
 │       ├── ReturnedMessageConfirmationSender
 │       ├── AiExecutionGateway
 │       └── ReturnedMessageResultSender
 ├── domain
 │   ├── ReturnedMessageRequest
+│   ├── ReturnedMessageSelection
 │   ├── ReturnedMessageStatus
 │   ├── ReturnedMessageDecision
 │   └── ReturnedMessageFailureStage
@@ -91,14 +93,14 @@ connection context 또는 이를 검증할 수 있는 식별자
 - 별도 인증 context와 request body를 비교하는 방식은 서비스 간 인증 계약을 정의하는 후속 ADR에서 다룬다.
 - `offlineSince < returnedAt <= triggerExpiresAt`처럼 시간 관계를 먼저 검증한다.
 
-잘못된 body 계약과 지원하지 않는 connection type은 lifecycle을 생성하지 않고 거절한다. 오류를 REST로 반환하는 경우 프로젝트의 RFC 9457 Problem Details 규칙을 따른다. 현재 body 기반 처리는 Client 원시 입력을 신뢰한다는 의미가 아니며, Messenger Client Ingress가 Client 입력을 검증하고 source-qualified Event를 구성한다는 호출 경계를 전제로 한다.
+잘못된 body 계약과 누락되거나 양수가 아닌 `connectionType`은 lifecycle을 생성하지 않고 거절한다. AI Orchestrator는 legacy `connectionType`의 값별 의미나 Returned Message 적용 대상 여부를 재판정하지 않고, 양수 값을 opaque routing constraint로 보관한다. `connectType 1, 2` 적용 대상 판정은 Messenger Client Ingress가 담당한다. 오류를 REST로 반환하는 경우 프로젝트의 RFC 9457 Problem Details 규칙을 따른다. 현재 body 기반 처리는 Client 원시 입력을 신뢰한다는 의미가 아니며, Messenger Client Ingress가 Client 입력을 검증하고 source-qualified Event를 구성한다는 호출 경계를 전제로 한다.
 
 ## Eligibility and Persistence Threshold
 
 Lifecycle 생성 전 다음 순서로 실행 후보 여부를 평가한다.
 
 1. 필수 식별자와 시간 형식을 검증한다.
-2. Request body의 routing contract가 지원하는 connection type인지 확인한다.
+2. Request body의 `connectionType`이 존재하고 양수인지 확인한다. 값별 의미와 기능 적용 대상은 판정하지 않는다.
 3. `offlineSince`와 `returnedAt`이 유효한 부재 구간인지 확인한다.
 4. 현재 DB 시각 기준으로 Trigger가 만료되지 않았는지 확인한다.
 5. 부재 시간이 `minAwayDuration` 이상이고 장기 부재 제외 기준을 위반하지 않는지 확인한다.
@@ -182,6 +184,14 @@ Terminal 상태에서는 다른 상태로 전이하지 않는다. Delivery를 �
 
 Lifecycle 생성에 성공한 처리자는 tenant, user와 absence period 범위로 Message owner에 unread 메시지를 조회한다. Message Query는 읽기 전용이며 AI Orchestrator는 Messenger 데이터의 소유권을 가져오지 않는다.
 
+현재 WebSocket Service adapter는 `MSG_UNREAD`의 첫 페이지를 `reqcount=30`, `reqpage=1`로 조회하고 결과의 `data[].msg_key`를 선택 항목으로 사용한다. 응답에 전체 건수 필드가 없으므로 `unreadCount`는 이 실행에서 선택된 항목 수이며 최대 30이다. AI Orchestrator는 UUID `messageSelectionRef`를 생성하고, 선택 메타데이터와 항목을 각각 `returned_message_selection`, `returned_message_selection_item`에 저장한다. 선택 항목은 source system, item type, source item key와 원래 조회 순서를 보관하며 메시지 본문은 저장하지 않는다.
+
+```text
+messageSelectionRef 1 ── N source item key
+```
+
+동일 lifecycle request에 이미 유효한 선택이 저장되어 있으면 복구 시 새 UUID를 만들지 않고 기존 선택을 재사용한다. `selection-ttl`이 지난 선택은 새 confirmation에 사용할 수 없다.
+
 - 대상 메시지가 없으면 `DETECTED → SKIPPED_NO_MESSAGES`로 전이한다.
 - 대상 메시지가 있으면 confirmation correlation, confirmation delivery 상태 `PENDING`과 DB 시각 기준 `confirmationExpiresAt`을 저장하면서 `DETECTED → AWAITING_CONFIRMATION`으로 전이한다.
 - 조회가 복구 불가능하게 실패하면 `DETECTED → FAILED`로 전이하고 `failureStage=DETECTION`을 기록한다.
@@ -217,10 +227,13 @@ YES는 다음 순서로 처리한다.
 현재 lifecycle과 confirmation 유효성 조회
 → Global / Feature / User Policy 재평가
 → Permission 재평가
+→ messageSelectionRef와 lifecycle owner로 유효한 선택 및 source item key 조회
 → stable executionId 생성
 → AWAITING_CONFIRMATION에서 PROCESSING으로 conditional update
-→ 전이 성공 시에만 Omni AI start command 수행
+→ 전이 성공 시에만 선택 항목을 포함한 Omni AI start command 수행
 ```
+
+YES 시점에는 `MSG_UNREAD`를 다시 실행하지 않는다. 최초 복귀 처리에서 확정한 source item key 집합을 사용하여 사용자가 확인한 대상과 AI 실행 대상이 달라지지 않게 한다. Client가 보낸 `messageSelectionRef`는 lifecycle에 저장된 값과 일치하는지 먼저 검증하고, selection 조회도 request, tenant, user와 absence period를 모두 조건으로 제한한다.
 
 Policy 또는 Permission이 거절되면 아직 만료되지 않은 `AWAITING_CONFIRMATION` row를 `BLOCKED_BY_POLICY`로 전이하고 AI를 호출하지 않는다. 재평가 중 NO 또는 expiration이 먼저 상태를 변경하면 YES의 conditional update는 `0`건이 되며 AI 실행을 시작하지 않는다.
 

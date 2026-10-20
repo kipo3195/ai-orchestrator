@@ -185,8 +185,7 @@ public class ReturnedMessageTriggerService implements HandleUserReturned {
 
     private void validateSourceContract(ReturnedMessageRequest request) {
         if (request.routingRef().connectionType() == null
-                || (request.routingRef().connectionType() != 1
-                    && request.routingRef().connectionType() != 2)) {
+                || request.routingRef().connectionType() <= 0) {
             throw new IllegalArgumentException("Invalid Returned Message source connection contract");
         }
         if (!request.offlineSince().isBefore(request.returnedAt())

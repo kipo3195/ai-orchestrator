@@ -64,8 +64,26 @@ class ReturnedMessageTriggerServiceTests {
     }
 
     @Test
-    void unsupportedConnectionTypeIsRejectedAsSourceContractViolation() {
-        assertThatThrownBy(() -> service.handle(request(3)))
+    void positiveConnectionTypeIsAcceptedWithoutInterpretingLegacyMeaning() {
+        ReturnedMessageRequest request = request(3);
+        ReturnedMessageLifecycle detected = lifecycle(ReturnedMessageStatus.DETECTED, null, null);
+        when(repository.currentTime()).thenReturn(NOW);
+        when(accessEvaluator.evaluateMessageSelection(any(), any(), any()))
+                .thenReturn(ReturnedMessageAccessEvaluator.AccessDecision.allow());
+        when(repository.create(request)).thenReturn(LifecycleCreationResult.alreadyExists(detected));
+
+        ReturnedMessageOperationResult result = service.handle(request);
+
+        assertThat(result.outcome()).isEqualTo(ReturnedMessageOperationResult.Outcome.EXISTING);
+        verify(repository).create(request);
+        verifyNoInteractions(messageQuery, confirmationSender);
+    }
+
+    @Test
+    void missingOrNonPositiveConnectionTypeIsRejectedAsSourceContractViolation() {
+        assertThatThrownBy(() -> service.handle(request(null)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.handle(request(0)))
                 .isInstanceOf(IllegalArgumentException.class);
         verifyNoInteractions(repository, messageQuery, confirmationSender, accessEvaluator);
     }
@@ -166,7 +184,7 @@ class ReturnedMessageTriggerServiceTests {
         verifyNoInteractions(messageQuery, confirmationSender);
     }
 
-    private ReturnedMessageRequest request(int connectionType) {
+    private ReturnedMessageRequest request(Integer connectionType) {
         return new ReturnedMessageRequest(
                 "request-1",
                 "trigger-1",

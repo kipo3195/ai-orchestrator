@@ -14,15 +14,18 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import com.ucware.ai_orchestrator.result.domain.RoutingRef;
 import com.ucware.ai_orchestrator.result.domain.RoutingScope;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGateway;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository;
+import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageSelectionRepository;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ConfirmationDeliveryStatus;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageConfirmation;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageDecision;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageLifecycle;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageSelection;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageStatus;
 
 class ReturnedMessageConfirmationServiceTests {
@@ -30,6 +33,7 @@ class ReturnedMessageConfirmationServiceTests {
     private static final Instant NOW = Instant.parse("2026-10-19T06:00:00Z");
 
     private ReturnedMessageRepository repository;
+    private ReturnedMessageSelectionRepository selectionRepository;
     private ReturnedMessageAccessEvaluator accessEvaluator;
     private AiExecutionGateway executionGateway;
     private HandleReturnedMessageExecutionResult resultHandler;
@@ -38,11 +42,15 @@ class ReturnedMessageConfirmationServiceTests {
     @BeforeEach
     void setUp() {
         repository = mock(ReturnedMessageRepository.class);
+        selectionRepository = mock(ReturnedMessageSelectionRepository.class);
         accessEvaluator = mock(ReturnedMessageAccessEvaluator.class);
         executionGateway = mock(AiExecutionGateway.class);
         resultHandler = mock(HandleReturnedMessageExecutionResult.class);
         service = new ReturnedMessageConfirmationService(
-                repository, accessEvaluator, executionGateway, resultHandler);
+                repository, selectionRepository, accessEvaluator, executionGateway, resultHandler);
+        when(selectionRepository.findOwnedActive(
+                "selection-1", "request-1", "tenant-1", "user-1", "period-1"))
+                .thenReturn(Optional.of(selection()));
     }
 
     @Test
@@ -65,7 +73,14 @@ class ReturnedMessageConfirmationServiceTests {
         ReturnedMessageOperationResult result = service.handle(confirmation(ReturnedMessageDecision.YES));
 
         assertThat(result.outcome()).isEqualTo(ReturnedMessageOperationResult.Outcome.UPDATED);
-        verify(executionGateway).start(any());
+        ArgumentCaptor<AiExecutionGateway.ExecutionCommand> commandCaptor =
+                ArgumentCaptor.forClass(AiExecutionGateway.ExecutionCommand.class);
+        verify(executionGateway).start(commandCaptor.capture());
+        assertThat(commandCaptor.getValue().selectedItems())
+                .extracting(ReturnedMessageSelection.Item::sourceItemKey)
+                .containsExactly("message-1", "message-2", "message-3");
+        verify(selectionRepository).findOwnedActive(
+                "selection-1", "request-1", "tenant-1", "user-1", "period-1");
     }
 
     @Test
@@ -186,5 +201,23 @@ class ReturnedMessageConfirmationServiceTests {
                 null,
                 NOW,
                 NOW);
+    }
+
+    private ReturnedMessageSelection selection() {
+        return new ReturnedMessageSelection(
+                "selection-1",
+                "request-1",
+                "tenant-1",
+                "user-1",
+                "period-1",
+                NOW,
+                NOW.plusSeconds(600),
+                java.util.List.of(
+                        new ReturnedMessageSelection.Item(
+                                "WEBSOCKET_SERVICE", "MESSAGE", "message-1", 0),
+                        new ReturnedMessageSelection.Item(
+                                "WEBSOCKET_SERVICE", "MESSAGE", "message-2", 1),
+                        new ReturnedMessageSelection.Item(
+                                "WEBSOCKET_SERVICE", "MESSAGE", "message-3", 2)));
     }
 }

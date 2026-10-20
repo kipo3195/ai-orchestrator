@@ -29,6 +29,8 @@ dependencies {
 
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
+
+	runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
 }
 
 tasks.named('test') {
