@@ -116,6 +116,34 @@ class ReturnedMessagePolicyErrorResponseTests {
     }
 
     @Test
+    void userReturnedRequiresConnectionType() throws Exception {
+        mockMvc.perform(post("/api/v1/returned-messages")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "requestId": "request-1",
+                                  "triggerId": "trigger-1",
+                                  "absencePeriodId": "period-1",
+                                  "offlineSince": "2026-10-19T05:30:00Z",
+                                  "returnedAt": "2026-10-19T06:00:00Z",
+                                  "occurredAt": "2026-10-19T06:00:00Z",
+                                  "expiresAt": "2026-10-19T06:05:00Z",
+                                  "routingRef": {
+                                    "tenantId": "tenant-1",
+                                    "userId": "user-1",
+                                    "targetRef": "target-1"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(
+                        MediaType.parseMediaType("application/problem+json")))
+                .andExpect(jsonPath("$.title").value("Bad Request"))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.detail").value("Invalid request"));
+    }
+
+    @Test
     void confirmationCorrelationIsReadFromRequestBody() throws Exception {
         when(handleConfirmation.handle(any()))
                 .thenReturn(ReturnedMessageOperationResult.rejected("test"));
@@ -150,6 +178,32 @@ class ReturnedMessagePolicyErrorResponseTests {
                 Instant.parse("2026-10-19T06:01:00Z"),
                 "target-1",
                 1));
+    }
+
+    @Test
+    void confirmationRequiresConnectionType() throws Exception {
+        mockMvc.perform(post("/api/v1/returned-messages/request-1/confirmations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "absencePeriodId": "period-1",
+                                  "confirmationId": "confirmation-1",
+                                  "messageSelectionRef": "selection-1",
+                                  "decision": "YES",
+                                  "decidedAt": "2026-10-19T06:01:00Z",
+                                  "routingRef": {
+                                    "tenantId": "tenant-1",
+                                    "userId": "user-1",
+                                    "targetRef": "target-1"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(
+                        MediaType.parseMediaType("application/problem+json")))
+                .andExpect(jsonPath("$.title").value("Bad Request"))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.detail").value("Invalid request"));
     }
 
     @Test

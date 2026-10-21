@@ -55,8 +55,8 @@ class ConversationStartVersionTests {
                         .content("{\"roomSessionId\":\"room-session-1\"," +
                                 "\"roomKey\":\"room-1\",\"chatType\":\"group\"," +
                                 "\"routingRef\":{\"tenantId\":\"tenant-1\"," +
-                                "\"userId\":\"user-1\",\"targetRef\":\"client-session-1\"," +
-                                "\"connectionType\":1}}"))
+                                "\"userId\":\"user-1\"," +
+                                "\"targetRef\":\"client-session-1\"}}"))
                 .andExpect(status().isCreated())
                 .andExpect(header().string(
                         "Location", "/api/v2/conversation-starts/executions/execution-1"))
@@ -76,6 +76,6 @@ class ConversationStartVersionTests {
         assertThat(routingRef.tenantId()).isEqualTo("tenant-1");
         assertThat(routingRef.userId()).isEqualTo("user-1");
         assertThat(routingRef.clientSessionId()).isEqualTo("client-session-1");
-        assertThat(routingRef.connectionType()).isEqualTo(1);
+        assertThat(routingRef.connectionType()).isNull();
     }
 }

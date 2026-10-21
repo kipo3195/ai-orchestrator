@@ -45,6 +45,7 @@ public class ReturnedMessageController {
     @PostMapping
     public ResponseEntity<ReturnedMessageResponse> userReturned(
             @Valid @RequestBody UserReturnedHttpRequest request) {
+        requireConnectionType(request.routingRef());
         RoutingRef routingRef = request.routingRef().toRoutingRef(
                 new RoutingScope("ABSENCE_PERIOD", request.absencePeriodId()));
         ReturnedMessageOperationResult result = handleUserReturned.handle(
@@ -67,6 +68,7 @@ public class ReturnedMessageController {
             @PathVariable String requestId,
             @Valid @RequestBody ConfirmationHttpRequest request) {
         RoutingRefRequest routingRef = request.routingRef();
+        int connectionType = requireConnectionType(routingRef);
         ReturnedMessageOperationResult result = handleConfirmation.handle(
                 new ReturnedMessageConfirmation(
                         routingRef.tenantId(),
@@ -78,8 +80,16 @@ public class ReturnedMessageController {
                         request.decision(),
                         request.decidedAt(),
                         routingRef.targetRef(),
-                        routingRef.connectionType()));
+                        connectionType));
         return ResponseEntity.ok(ReturnedMessageResponse.from(result));
+    }
+
+    private static int requireConnectionType(RoutingRefRequest routingRef) {
+        if (routingRef.connectionType() == null) {
+            throw new IllegalArgumentException(
+                    "Returned Message routing reference requires connectionType");
+        }
+        return routingRef.connectionType();
     }
 
     @PostMapping("/{requestId}/execution-results")

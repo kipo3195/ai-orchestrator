@@ -10,7 +10,7 @@ public record RoutingRefRequest(
         @NotBlank String tenantId,
         @NotBlank String userId,
         @NotBlank String targetRef,
-        @Positive int connectionType) {
+        @Positive Integer connectionType) {
 
     public RoutingRef toRoutingRef(RoutingScope scope) {
         return RoutingRef.forClientSession(
