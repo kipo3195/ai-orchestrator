@@ -16,8 +16,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import com.ucware.ai_orchestrator.result.domain.RoutingRef;
-import com.ucware.ai_orchestrator.result.domain.RoutingScope;
+import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
+import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGateway;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageSelectionRepository;

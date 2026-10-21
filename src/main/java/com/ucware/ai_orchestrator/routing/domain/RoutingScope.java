@@ -1,4 +1,4 @@
-package com.ucware.ai_orchestrator.result.domain;
+package com.ucware.ai_orchestrator.routing.domain;
 
 import java.util.Objects;
 

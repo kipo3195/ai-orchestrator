@@ -11,7 +11,7 @@ import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
-import com.ucware.ai_orchestrator.result.domain.RoutingRef;
+import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
 
 class RedisRealtimeConnectionResolverTests {
 

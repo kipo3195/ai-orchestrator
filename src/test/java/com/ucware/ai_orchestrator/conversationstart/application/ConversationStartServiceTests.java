@@ -37,9 +37,8 @@ import com.ucware.ai_orchestrator.policy.domain.UserAiPolicyProvider;
 import com.ucware.ai_orchestrator.policy.domain.UserAiPolicyResolution;
 import com.ucware.ai_orchestrator.policy.domain.UserAiPolicyStatus;
 import com.ucware.ai_orchestrator.result.application.AiResultRouter;
-import com.ucware.ai_orchestrator.result.application.RoutingRefFactory;
 import com.ucware.ai_orchestrator.result.domain.ResultEvent;
-import com.ucware.ai_orchestrator.result.infrastructure.config.ResultRouterProperties;
+import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
 
 class ConversationStartServiceTests {
 
@@ -48,7 +47,7 @@ class ConversationStartServiceTests {
         TestContext context = new TestContext();
 
         ConversationStart execution = context.service.start(
-                "room-session-1", "client-session-1","user-1", "room-1", "chat");
+                "room-session-1", routingRef(), "room-1", "chat");
 
         assertThat(execution.getExecutionId()).isNotBlank();
         assertThat(execution.getRoomSessionId()).isEqualTo("room-session-1");
@@ -61,10 +60,10 @@ class ConversationStartServiceTests {
     void reenterCancelsPreviousExecutionAndCreatesNewCorrelation() {
         TestContext context = new TestContext();
         ConversationStart previous = context.service.start(
-                "room-session-1", "client-session-1", "user-1", "room-1", "chat");
+                "room-session-1", routingRef(), "room-1", "chat");
 
         ConversationStart current = context.service.start(
-                "room-session-2", "client-session-1", "user-1", "room-1", "chat");
+                "room-session-2", routingRef(), "room-1", "chat");
 
         assertThat(previous.getStatus()).isEqualTo(AiExecutionStatus.CANCELLED);
         assertThat(current.getExecutionId()).isNotEqualTo(previous.getExecutionId());
@@ -78,10 +77,10 @@ class ConversationStartServiceTests {
     void duplicateEnterForSameRoomSessionReturnsExistingExecution() {
         TestContext context = new TestContext();
         ConversationStart first = context.service.start(
-                "room-session-1", "client-session-1", "user-1", "room-1", "chat");
+                "room-session-1", routingRef(), "room-1", "chat");
 
         ConversationStart duplicate = context.service.start(
-                "room-session-1", "client-session-1", "user-1", "room-1", "chat");
+                "room-session-1", routingRef(), "room-1", "chat");
 
         assertThat(duplicate).isSameAs(first);
         verify(context.scheduler, times(1)).schedule(any(), any(), any());
@@ -91,7 +90,7 @@ class ConversationStartServiceTests {
     void leaveCancelsOnlyExecutionMappedToRoomSession() {
         TestContext context = new TestContext();
         ConversationStart execution = context.service.start(
-                "room-session-1", "client-session-1", "user-1", "room-1", "chat");
+                "room-session-1", routingRef(), "room-1", "chat");
 
         assertThat(context.service.cancel("unknown-session", "user-1", "room-1")).isFalse();
         assertThat(context.service.cancel("room-session-1", "user-1", "room-1")).isTrue();
@@ -117,7 +116,7 @@ class ConversationStartServiceTests {
         });
 
         ConversationStart execution = context.service.start(
-                "room-session-1", "client-session-1", "user-1", "room-1", "chat");
+                "room-session-1", routingRef(), "room-1", "chat");
         ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
         verify(context.scheduler).schedule(any(), any(), taskCaptor.capture());
 
@@ -145,7 +144,7 @@ class ConversationStartServiceTests {
         });
 
         ConversationStart execution = context.service.start(
-                "room-session-1", "client-session-1", "user-1", "room-1", "chat");
+                "room-session-1", routingRef(), "room-1", "chat");
         ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
         verify(context.scheduler).schedule(any(), any(), taskCaptor.capture());
 
@@ -168,7 +167,7 @@ class ConversationStartServiceTests {
         // scheduler가 Mock 객체라면 실제 예약 작업은 실행되지 않으며, 예약 작업(호출은 함)을 제외한 로직만 점검
         // ① 실제 서비스 실행 → Mock scheduler.schedule() 호출 기록
         ConversationStart execution = context.service.start(
-                "room-session-1", "client-session-1", "user-1", "room-1", "chat");
+                "room-session-1", routingRef(), "room-1", "chat");
         // ② schedule() 호출 여부 검증 + Runnable 캡처
         ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
         // verify는 context.service.start내에서 스케쥴 메소드가 실제로 호출되었나?
@@ -192,7 +191,7 @@ class ConversationStartServiceTests {
     void scheduledExecutionIsRejectedWhenFeaturePolicyTurnsOffBeforeExecution() {
         TestContext context = new TestContext();
         ConversationStart execution = context.service.start(
-                "room-session-1", "client-session-1", "user-1", "room-1", "chat");
+                "room-session-1", routingRef(), "room-1", "chat");
         ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
         verify(context.scheduler).schedule(any(), any(), taskCaptor.capture());
         context.policySnapshot.set(AiPolicySnapshot.initialized(
@@ -212,7 +211,7 @@ class ConversationStartServiceTests {
         when(context.userPolicyProvider.resolve("default", "user-1"))
                 .thenReturn(UserAiPolicyResolution.resolved(UserAiPolicyStatus.DISABLED));
         ConversationStart execution = context.service.start(
-                "room-session-1", "client-session-1", "user-1", "room-1", "chat");
+                "room-session-1", routingRef(), "room-1", "chat");
         ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
         verify(context.scheduler).schedule(any(), any(), taskCaptor.capture());
 
@@ -246,10 +245,6 @@ class ConversationStartServiceTests {
                 new ConversationStartProperties(true, Duration.ofSeconds(10), Duration.ofMinutes(5)),
                 aiPort,
                 resultRouter,
-                new RoutingRefFactory(new ResultRouterProperties(
-                        "default", new ResultRouterProperties.Delivery(
-                                Map.of(), "/internal/v1/ai-results",
-                                Duration.ofSeconds(3), Duration.ofSeconds(5)))),
                 policyService);
 
         private TestContext() {
@@ -261,5 +256,10 @@ class ConversationStartServiceTests {
 
     private static FeaturePolicyKey featureKey() {
         return new FeaturePolicyKey("default", AiFeature.CONVERSATION_START);
+    }
+
+    private static RoutingRef routingRef() {
+        return RoutingRef.forClientSession(
+                "default", "user-1", "client-session-1", null, 1);
     }
 }

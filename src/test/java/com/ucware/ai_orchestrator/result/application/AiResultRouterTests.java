@@ -18,8 +18,8 @@ import com.ucware.ai_orchestrator.result.application.port.ResultDeliveryPort;
 import com.ucware.ai_orchestrator.result.domain.DeliveryEvent;
 import com.ucware.ai_orchestrator.result.domain.DeliveryTarget;
 import com.ucware.ai_orchestrator.result.domain.ResultEvent;
-import com.ucware.ai_orchestrator.result.domain.RoutingRef;
-import com.ucware.ai_orchestrator.result.domain.RoutingScope;
+import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
+import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 
 class AiResultRouterTests {
 

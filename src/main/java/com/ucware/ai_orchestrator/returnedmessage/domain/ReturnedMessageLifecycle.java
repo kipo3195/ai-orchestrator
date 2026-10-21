@@ -3,7 +3,7 @@ package com.ucware.ai_orchestrator.returnedmessage.domain;
 import java.time.Instant;
 import java.util.Objects;
 
-import com.ucware.ai_orchestrator.result.domain.RoutingRef;
+import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
 
 public record ReturnedMessageLifecycle(
         String requestId,

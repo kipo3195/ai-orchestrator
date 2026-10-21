@@ -2,6 +2,7 @@ package com.ucware.ai_orchestrator.conversationstart.application;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -24,10 +25,9 @@ import com.ucware.ai_orchestrator.policy.application.AiExecutionPolicyService;
 import com.ucware.ai_orchestrator.policy.domain.AiExecutionPolicyDecision;
 import com.ucware.ai_orchestrator.policy.domain.AiFeature;
 import com.ucware.ai_orchestrator.result.application.AiResultRouter;
-import com.ucware.ai_orchestrator.result.application.RoutingRefFactory;
 import com.ucware.ai_orchestrator.result.domain.ResultEvent;
-import com.ucware.ai_orchestrator.result.domain.RoutingRef;
-import com.ucware.ai_orchestrator.result.domain.RoutingScope;
+import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
+import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 
 @Service
 public class ConversationStartService
@@ -41,7 +41,6 @@ public class ConversationStartService
     private final ConversationStartProperties properties;
     private final ConversationStartAiPort aiPort;
     private final AiResultRouter resultRouter;
-    private final RoutingRefFactory routingRefFactory;
     private final AiExecutionPolicyService policyService;
 
     public ConversationStartService(ConversationStartRepository repository,
@@ -50,7 +49,6 @@ public class ConversationStartService
                                     ConversationStartProperties properties,
                                     ConversationStartAiPort aiPort,
                                     AiResultRouter resultRouter,
-                                    RoutingRefFactory routingRefFactory,
                                     AiExecutionPolicyService policyService) {
         this.repository = repository;
         this.scheduler = scheduler;
@@ -58,18 +56,24 @@ public class ConversationStartService
         this.properties = properties;
         this.aiPort = aiPort;
         this.resultRouter = resultRouter;
-        this.routingRefFactory = routingRefFactory;
         this.policyService = policyService;
     }
 
     @Override
-    public synchronized ConversationStart start(String roomSessionId, String clientSessionId, String userId, String roomId, String chatType) {
+    public synchronized ConversationStart start(
+            String roomSessionId,
+            RoutingRef routingRef,
+            String roomId,
+            String chatType) {
         if (!properties.enabled()) {
             throw new IllegalStateException("Conversation start is disabled");
         }
         requireText(roomSessionId, "roomSessionId");
-        requireText(clientSessionId, "clientSessionId");
+        Objects.requireNonNull(routingRef, "routingRef must not be null");
+        String userId = routingRef.userId();
+        requireText(routingRef.tenantId(), "tenantId");
         requireText(userId, "userId");
+        requireText(routingRef.clientSessionId(), "clientSessionId");
         requireText(roomId, "roomId");
 
         ConversationStart existingSession = repository.findActiveByRoomSessionId(roomSessionId).orElse(null);
@@ -86,12 +90,14 @@ public class ConversationStartService
         });
 
         Instant enteredAt = Instant.now();
-        RoutingRef routingRef = routingRefFactory.forClientSession(
+        RoutingRef executionRoutingRef = RoutingRef.forClientSession(
+                routingRef.tenantId(),
                 userId,
-                clientSessionId,
-                new RoutingScope("ROOM_SESSION", roomSessionId));
+                routingRef.clientSessionId(),
+                new RoutingScope("ROOM_SESSION", roomSessionId),
+                routingRef.connectionType());
         AiExecution aiExecution = AiExecution.create(
-                UUID.randomUUID().toString(), AiWorkflowType.CONVERSATION_START, routingRef,
+                UUID.randomUUID().toString(), AiWorkflowType.CONVERSATION_START, executionRoutingRef,
                 enteredAt, enteredAt.plus(properties.triggerDelay()));
         ConversationStart execution = ConversationStart.create(
                 aiExecution,  roomSessionId, userId, roomId, normalizeChatType(chatType));

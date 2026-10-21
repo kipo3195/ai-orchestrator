@@ -9,8 +9,8 @@ import org.springframework.stereotype.Component;
 import com.ucware.ai_orchestrator.result.application.ResultRoutingException;
 import com.ucware.ai_orchestrator.result.application.port.RealtimeConnectionResolver;
 import com.ucware.ai_orchestrator.result.domain.DeliveryTarget;
-import com.ucware.ai_orchestrator.result.domain.RoutingRef;
-import com.ucware.ai_orchestrator.result.domain.RoutingTargetType;
+import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
+import com.ucware.ai_orchestrator.routing.domain.RoutingTargetType;
 
 @Component
 public class RedisRealtimeConnectionResolver implements RealtimeConnectionResolver {

@@ -38,14 +38,15 @@ class ConversationStartErrorResponseTests {
         mockMvc.perform(post("/api/v1/conversation-starts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"roomSessionId\":\"room-session-1\"," +
-                                "\"clientSessionId\":\"client-session-1\",\"userID\":\"\"," +
-                                "\"roomKey\":\"room-1\"}"))
+                                "\"roomKey\":\"room-1\",\"routingRef\":{" +
+                                "\"tenantId\":\"tenant-1\",\"userId\":\"\"," +
+                                "\"targetRef\":\"client-session-1\",\"connectionType\":1}}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("application/problem+json")))
                 .andExpect(jsonPath("$.type").value("about:blank"))
                 .andExpect(jsonPath("$.title").value("Bad Request"))
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.detail").value("userID: must not be blank"));
+                .andExpect(jsonPath("$.detail").value("routingRef.userId: must not be blank"));
     }
 
     @Test
@@ -64,8 +65,9 @@ class ConversationStartErrorResponseTests {
     void missingRoomSessionIdUsesProblemDetails() throws Exception {
         mockMvc.perform(post("/api/v1/conversation-starts")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"clientSessionId\":\"client-session-1\"," +
-                                "\"userID\":\"user-1\",\"roomKey\":\"room-1\"}"))
+                        .content("{\"roomKey\":\"room-1\",\"routingRef\":{" +
+                                "\"tenantId\":\"tenant-1\",\"userId\":\"user-1\"," +
+                                "\"targetRef\":\"client-session-1\",\"connectionType\":1}}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("application/problem+json")))
                 .andExpect(jsonPath("$.title").value("Bad Request"))
@@ -100,14 +102,15 @@ class ConversationStartErrorResponseTests {
 
     @Test
     void unavailableConversationDoesNotExposeExceptionMessage() throws Exception {
-        when(startUseCase.start(any(), any(), any(), any(), any()))
+        when(startUseCase.start(any(), any(), any(), any()))
                 .thenThrow(new IllegalStateException("internal state"));
 
         mockMvc.perform(post("/api/v1/conversation-starts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"roomSessionId\":\"room-session-1\"," +
-                                "\"clientSessionId\":\"client-session-1\",\"userID\":\"user-1\"," +
-                                "\"roomKey\":\"room-1\"}"))
+                                "\"roomKey\":\"room-1\",\"routingRef\":{" +
+                                "\"tenantId\":\"tenant-1\",\"userId\":\"user-1\"," +
+                                "\"targetRef\":\"client-session-1\",\"connectionType\":1}}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("application/problem+json")))
                 .andExpect(jsonPath("$.type").value("about:blank"))

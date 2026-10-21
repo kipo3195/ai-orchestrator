@@ -5,7 +5,6 @@ import java.time.Instant;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,8 +12,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.ucware.ai_orchestrator.result.domain.RoutingRef;
-import com.ucware.ai_orchestrator.result.domain.RoutingScope;
 import com.ucware.ai_orchestrator.returnedmessage.application.HandleReturnedMessageConfirmation;
 import com.ucware.ai_orchestrator.returnedmessage.application.HandleReturnedMessageExecutionResult;
 import com.ucware.ai_orchestrator.returnedmessage.application.HandleUserReturned;
@@ -24,6 +21,9 @@ import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageConfirma
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageDecision;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageLifecycle;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageRequest;
+import com.ucware.ai_orchestrator.routing.controller.RoutingRefRequest;
+import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
+import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 
 @RestController
 @RequestMapping("/api/${api.version}/returned-messages")
@@ -45,20 +45,14 @@ public class ReturnedMessageController {
     @PostMapping
     public ResponseEntity<ReturnedMessageResponse> userReturned(
             @Valid @RequestBody UserReturnedHttpRequest request) {
-        requireConsistentRoutingOwner(request.tenantId(), request.userId(), request.routingRef());
-
-        RoutingRef routingRef = RoutingRef.forClientSession(
-                request.tenantId(),
-                request.userId(),
-                request.routingRef().targetRef(),
-                new RoutingScope("ABSENCE_PERIOD", request.absencePeriodId()),
-                request.routingRef().connectionType());
+        RoutingRef routingRef = request.routingRef().toRoutingRef(
+                new RoutingScope("ABSENCE_PERIOD", request.absencePeriodId()));
         ReturnedMessageOperationResult result = handleUserReturned.handle(
                 new ReturnedMessageRequest(
                         request.requestId(),
                         request.triggerId(),
-                        request.tenantId(),
-                        request.userId(),
+                        routingRef.tenantId(),
+                        routingRef.userId(),
                         request.absencePeriodId(),
                         request.offlineSince(),
                         request.returnedAt(),
@@ -72,7 +66,7 @@ public class ReturnedMessageController {
     public ResponseEntity<ReturnedMessageResponse> confirm(
             @PathVariable String requestId,
             @Valid @RequestBody ConfirmationHttpRequest request) {
-        RoutingRefHttpRequest routingRef = request.routingRef();
+        RoutingRefRequest routingRef = request.routingRef();
         ReturnedMessageOperationResult result = handleConfirmation.handle(
                 new ReturnedMessageConfirmation(
                         routingRef.tenantId(),
@@ -102,35 +96,16 @@ public class ReturnedMessageController {
         return ResponseEntity.ok(ReturnedMessageResponse.from(result));
     }
 
-    private static void requireConsistentRoutingOwner(
-            String requestTenantId,
-            String requestUserId,
-            RoutingRefHttpRequest routingRef) {
-        if (!requestTenantId.equals(routingRef.tenantId())
-                || !requestUserId.equals(routingRef.userId())) {
-            throw new IllegalArgumentException("Routing reference owner does not match request owner");
-        }
-    }
-
     // 클래스 내부에 선언한 record는 암묵적으로 static이기 때문에 외부 Controller 인스턴스를 참조하지 않음
     public record UserReturnedHttpRequest(
             @NotBlank String requestId,
             @NotBlank String triggerId,
-            @NotBlank String tenantId,
-            @NotBlank String userId,
             @NotBlank String absencePeriodId,
             @NotNull Instant offlineSince,
             @NotNull Instant returnedAt,
             @NotNull Instant occurredAt,
             @NotNull Instant expiresAt,
-            @NotNull @Valid RoutingRefHttpRequest routingRef) {
-    }
-
-    public record RoutingRefHttpRequest(
-            @NotBlank String tenantId,
-            @NotBlank String userId,
-            @NotBlank String targetRef,
-            @Positive int connectionType) {
+            @NotNull @Valid RoutingRefRequest routingRef) {
     }
 
     public record ConfirmationHttpRequest(
@@ -139,7 +114,7 @@ public class ReturnedMessageController {
             @NotBlank String messageSelectionRef,
             @NotNull ReturnedMessageDecision decision,
             @NotNull Instant decidedAt,
-            @NotNull @Valid RoutingRefHttpRequest routingRef) {
+            @NotNull @Valid RoutingRefRequest routingRef) {
     }
 
     public record ExecutionResultHttpRequest(

@@ -88,8 +88,9 @@ connection context 또는 이를 검증할 수 있는 식별자
 - `triggerId`는 tenant 안에서 Trigger delivery retry를 식별한다.
 - `absencePeriodId`는 tenant와 user 안에서 하나의 부재 구간을 식별한다.
 - 현재 단계에서는 Messenger Client Ingress가 확정한 source-qualified request body의
-  `tenantId`, `userId`와 `routingRef`를 입력 계약으로 사용한다.
-- Request body의 최상위 owner와 `routingRef` owner가 서로 다르면 잘못된 계약으로 거절한다.
+  `routingRef.tenantId`, `routingRef.userId`를 owner의 단일 입력 출처로 사용한다.
+- AI Orchestrator는 `routingRef`에서 owner를 추출해 policy, permission, persistence와
+  message query에 사용하며 최상위 `tenantId`, `userId`를 중복으로 받지 않는다.
 - 별도 인증 context와 request body를 비교하는 방식은 서비스 간 인증 계약을 정의하는 후속 ADR에서 다룬다.
 - `offlineSince < returnedAt <= triggerExpiresAt`처럼 시간 관계를 먼저 검증한다.
 

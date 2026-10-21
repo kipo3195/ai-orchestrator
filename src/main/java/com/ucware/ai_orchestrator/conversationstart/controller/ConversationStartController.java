@@ -5,6 +5,7 @@ import java.net.URI;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,12 +16,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ucware.ai_orchestrator.conversationstart.application.CancelConversationSuggestionUseCase;
 import com.ucware.ai_orchestrator.conversationstart.application.StartConversationSuggestionUseCase;
 //import com.ucware.ai_orchestrator.conversationstart.controller.ConversationStartController.EnterRoomRequest.ConversationStartResponse;
 import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStart;
 import com.ucware.ai_orchestrator.execution.application.AiExecutionResponse;
+import com.ucware.ai_orchestrator.routing.controller.RoutingRefRequest;
+import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
@@ -42,7 +44,11 @@ public class ConversationStartController {
             @Valid @RequestBody EnterRoomRequest request,
             HttpServletRequest httpRequest) {
         ConversationStart execution = startUseCase.start(
-                request.roomSessionId(), request.clientSessionId ,request.userID(), request.roomKey(), request.chatType());
+                request.roomSessionId(),
+                request.routingRef().toRoutingRef(
+                        new RoutingScope("ROOM_SESSION", request.roomSessionId())),
+                request.roomKey(),
+                request.chatType());
         URI location = URI.create(httpRequest.getRequestURI() + "/executions/" + execution.getExecutionId());
         ConversationStartResponse featureResponse = new ConversationStartResponse(
                 execution.getRoomSessionId(), execution.getRoomId(), execution.getChatType());
@@ -61,9 +67,12 @@ public class ConversationStartController {
         return ResponseEntity.noContent().build();
     }
 
-    public record EnterRoomRequest(@NotBlank String roomSessionId, @JsonProperty("clientSessionId") @NotBlank String clientSessionId,
-                                   @JsonProperty("userID") @NotBlank String userID,
-                                   @NotBlank String roomKey, String chatType) { }
+    public record EnterRoomRequest(
+            @NotBlank String roomSessionId,
+            @NotBlank String roomKey,
+            String chatType,
+            @NotNull @Valid RoutingRefRequest routingRef) {
+    }
 
     public record ConversationStartResponse(String roomSessionId, String roomKey, String chatType) { }
 }

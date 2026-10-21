@@ -2,8 +2,8 @@ package com.ucware.ai_orchestrator.result.application;
 
 import org.springframework.stereotype.Component;
 
-import com.ucware.ai_orchestrator.result.domain.RoutingRef;
-import com.ucware.ai_orchestrator.result.domain.RoutingScope;
+import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
+import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 import com.ucware.ai_orchestrator.result.infrastructure.config.ResultRouterProperties;
 
 @Component

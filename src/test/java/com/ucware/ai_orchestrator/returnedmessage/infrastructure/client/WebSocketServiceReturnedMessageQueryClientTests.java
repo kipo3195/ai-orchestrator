@@ -79,7 +79,6 @@ class WebSocketServiceReturnedMessageQueryClientTests {
             assertThat(requestPath.get()).isEqualTo("/rest/his_note");
             assertThat(objectMapper.readTree(requestBody.get())).isEqualTo(objectMapper.readTree("""
                     {
-                      "loginID": "user-1",
                       "sqlName": "MSG_UNREAD",
                       "startDate": "2026-10-20T00:00:00Z",
                       "endDate": "2026-10-20T01:00:00Z",

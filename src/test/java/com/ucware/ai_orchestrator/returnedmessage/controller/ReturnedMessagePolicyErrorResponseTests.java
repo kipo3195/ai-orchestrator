@@ -1,5 +1,6 @@
 package com.ucware.ai_orchestrator.returnedmessage.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -11,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -25,6 +27,7 @@ import com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessageOpe
 import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGateway;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageConfirmation;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageDecision;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageRequest;
 
 @WebMvcTest(value = ReturnedMessageController.class, properties = "api.version=v1")
 class ReturnedMessagePolicyErrorResponseTests {
@@ -53,8 +56,6 @@ class ReturnedMessagePolicyErrorResponseTests {
                                 {
                                   "requestId": "request-1",
                                   "triggerId": "trigger-1",
-                                  "tenantId": "tenant-1",
-                                  "userId": "user-1",
                                   "absencePeriodId": "period-1",
                                   "offlineSince": "2026-10-19T05:30:00Z",
                                   "returnedAt": "2026-10-19T06:00:00Z",
@@ -76,6 +77,42 @@ class ReturnedMessagePolicyErrorResponseTests {
                 .andExpect(jsonPath("$.status").value(503))
                 .andExpect(jsonPath("$.detail").value(
                         "Returned Message policy is unavailable"));
+    }
+
+    @Test
+    void userReturnedOwnerIsReadFromRoutingRef() throws Exception {
+        when(handleUserReturned.handle(any()))
+                .thenReturn(ReturnedMessageOperationResult.rejected("test"));
+
+        mockMvc.perform(post("/api/v1/returned-messages")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "requestId": "request-1",
+                                  "triggerId": "trigger-1",
+                                  "absencePeriodId": "period-1",
+                                  "offlineSince": "2026-10-19T05:30:00Z",
+                                  "returnedAt": "2026-10-19T06:00:00Z",
+                                  "occurredAt": "2026-10-19T06:00:00Z",
+                                  "expiresAt": "2026-10-19T06:05:00Z",
+                                  "routingRef": {
+                                    "tenantId": "tenant-1",
+                                    "userId": "user-1",
+                                    "targetRef": "target-1",
+                                    "connectionType": 1
+                                  }
+                                }
+                                """))
+                .andExpect(status().isAccepted());
+
+        ArgumentCaptor<ReturnedMessageRequest> requestCaptor =
+                ArgumentCaptor.forClass(ReturnedMessageRequest.class);
+        verify(handleUserReturned).handle(requestCaptor.capture());
+        ReturnedMessageRequest request = requestCaptor.getValue();
+        assertThat(request.tenantId()).isEqualTo("tenant-1");
+        assertThat(request.userId()).isEqualTo("user-1");
+        assertThat(request.routingRef().clientSessionId())
+                .isEqualTo("target-1");
     }
 
     @Test

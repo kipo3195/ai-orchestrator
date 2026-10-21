@@ -7,7 +7,7 @@ import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
 
-import com.ucware.ai_orchestrator.result.domain.RoutingRef;
+import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
 
 class AiExecutionTests {
 

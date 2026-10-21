@@ -2,7 +2,7 @@ package com.ucware.ai_orchestrator.returnedmessage.application.port;
 
 import java.time.Instant;
 
-import com.ucware.ai_orchestrator.result.domain.RoutingRef;
+import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
 
 public interface ReturnedMessageConfirmationSender {
 

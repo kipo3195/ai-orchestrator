@@ -16,8 +16,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import com.ucware.ai_orchestrator.result.domain.RoutingRef;
-import com.ucware.ai_orchestrator.result.domain.RoutingScope;
+import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
+import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 import com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessagePersistenceException;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.LifecycleCreationResult;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository;

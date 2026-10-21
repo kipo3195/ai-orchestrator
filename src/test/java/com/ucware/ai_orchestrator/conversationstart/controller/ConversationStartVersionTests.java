@@ -1,6 +1,9 @@
 package com.ucware.ai_orchestrator.conversationstart.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -10,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -21,7 +25,7 @@ import com.ucware.ai_orchestrator.conversationstart.application.StartConversatio
 import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStart;
 import com.ucware.ai_orchestrator.execution.domain.AiExecution;
 import com.ucware.ai_orchestrator.execution.domain.AiWorkflowType;
-import com.ucware.ai_orchestrator.result.domain.RoutingRef;
+import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
 
 @WebMvcTest(value = ConversationStartController.class, properties = "api.version=v2")
 class ConversationStartVersionTests {
@@ -43,14 +47,16 @@ class ConversationStartVersionTests {
                 RoutingRef.forClientSession("default", "user-1", "client-session-1", null),
                 now, now);
         aiExecution.schedule();
-        when(startUseCase.start(any(), any(), any(), any(), any())).thenReturn(ConversationStart.create(
+        when(startUseCase.start(any(), any(), any(), any())).thenReturn(ConversationStart.create(
                 aiExecution, "room-session-1", "user-1", "room-1", "group"));
 
         mockMvc.perform(post("/api/v2/conversation-starts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"roomSessionId\":\"room-session-1\"," +
-                                "\"clientSessionId\":\"client-session-1\",\"userID\":\"user-1\"," +
-                                "\"roomKey\":\"room-1\",\"chatType\":\"group\"}"))
+                                "\"roomKey\":\"room-1\",\"chatType\":\"group\"," +
+                                "\"routingRef\":{\"tenantId\":\"tenant-1\"," +
+                                "\"userId\":\"user-1\",\"targetRef\":\"client-session-1\"," +
+                                "\"connectionType\":1}}"))
                 .andExpect(status().isCreated())
                 .andExpect(header().string(
                         "Location", "/api/v2/conversation-starts/executions/execution-1"))
@@ -62,5 +68,14 @@ class ConversationStartVersionTests {
                 .andExpect(jsonPath("$.data.roomSessionId").value("room-session-1"))
                 .andExpect(jsonPath("$.data.roomKey").value("room-1"))
                 .andExpect(jsonPath("$.data.chatType").value("group"));
+
+        ArgumentCaptor<RoutingRef> routingRefCaptor = ArgumentCaptor.forClass(RoutingRef.class);
+        verify(startUseCase).start(
+                eq("room-session-1"), routingRefCaptor.capture(), eq("room-1"), eq("group"));
+        RoutingRef routingRef = routingRefCaptor.getValue();
+        assertThat(routingRef.tenantId()).isEqualTo("tenant-1");
+        assertThat(routingRef.userId()).isEqualTo("user-1");
+        assertThat(routingRef.clientSessionId()).isEqualTo("client-session-1");
+        assertThat(routingRef.connectionType()).isEqualTo(1);
     }
 }

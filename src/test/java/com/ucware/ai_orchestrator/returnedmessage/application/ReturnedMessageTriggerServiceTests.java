@@ -17,8 +17,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.ucware.ai_orchestrator.result.domain.RoutingRef;
-import com.ucware.ai_orchestrator.result.domain.RoutingScope;
+import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
+import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.LifecycleCreationResult;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageConfirmationSender;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageQuery;

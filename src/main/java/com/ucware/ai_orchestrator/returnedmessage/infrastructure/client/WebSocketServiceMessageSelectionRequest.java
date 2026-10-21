@@ -3,7 +3,6 @@ package com.ucware.ai_orchestrator.returnedmessage.infrastructure.client;
 import java.util.List;
 
 public record WebSocketServiceMessageSelectionRequest(
-        String loginID,
         String sqlName,
         String startDate,
         String endDate,

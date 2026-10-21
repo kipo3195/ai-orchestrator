@@ -57,7 +57,6 @@ public class WebSocketServiceReturnedMessageQueryClient implements ReturnedMessa
     public MessageSelection selectUnreadMessages(MessageSelectionQuery query) {
         WebSocketServiceMessageSelectionRequest requestBody =
                 new WebSocketServiceMessageSelectionRequest(
-                        query.userId(),
                         "MSG_UNREAD",
                         String.valueOf(query.offlineSince()),
                         String.valueOf(query.returnedAt()),
@@ -74,6 +73,7 @@ public class WebSocketServiceReturnedMessageQueryClient implements ReturnedMessa
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
                 .header("X-Service-Key", "1234")
+                .header("X-Acting-User-Id", query.userId())
                 .POST(HttpRequest.BodyPublishers.ofString(writeBody(requestBody)))
                 .build();
         logger.info("WebSocket Service request URI: {}", request.uri());

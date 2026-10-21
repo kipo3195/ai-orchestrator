@@ -3,7 +3,7 @@ package com.ucware.ai_orchestrator.result.application.port;
 import java.util.Optional;
 
 import com.ucware.ai_orchestrator.result.domain.DeliveryTarget;
-import com.ucware.ai_orchestrator.result.domain.RoutingRef;
+import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
 
 public interface RealtimeConnectionResolver {
     // Client Connection

@@ -18,8 +18,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.ucware.ai_orchestrator.result.domain.RoutingRef;
-import com.ucware.ai_orchestrator.result.domain.RoutingScope;
+import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
+import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.LifecycleCreationResult;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageRequest;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageStatus;
