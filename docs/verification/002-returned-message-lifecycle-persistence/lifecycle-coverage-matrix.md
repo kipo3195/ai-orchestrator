@@ -10,9 +10,11 @@ Verification 상태와 TC별 실행 결과의 단일 원천은 [상위 Verificat
 
 | 처리 단계 | 입력/상태 조건 | 기대 결과 | 금지할 부수 효과 | TC | 자동화 테스트 |
 |---|---|---|---|---|---|
-| 저장 전 평가 | 지원하는 Desktop connection, 유효한 부재와 Trigger, 정책·권한 허용 | lifecycle insert 시도 | insert 전 Message Query 또는 delivery | [TC-001](test-cases/TC-001-persistence-threshold.md) | Planned |
-| 저장 전 평가 | 잘못된 계약, 비대상 connection, 짧거나 잘못된 부재, 만료 Trigger | 요청 거절 또는 비대상 결과 | lifecycle write와 모든 외부 작업 | [TC-001](test-cases/TC-001-persistence-threshold.md) | Planned |
-| 저장 전 평가 | Policy/Permission 거절 또는 unavailable | fail-closed, lifecycle 미생성 | Message Query와 AI 실행 | [TC-001](test-cases/TC-001-persistence-threshold.md) | Planned |
+| 저장 전 평가 | 지원하는 Desktop connection, 유효한 부재와 Trigger, 정책·권한 허용 | lifecycle insert 시도 | insert 전 Message Query 또는 delivery | [TC-001](test-cases/TC-001-persistence-threshold.md) | Partial |
+| 저장 전 평가 | 잘못된 계약, 비대상 connection, 짧거나 잘못된 부재, 만료 Trigger | 요청 거절 또는 비대상 결과 | lifecycle write와 모든 외부 작업 | [TC-001](test-cases/TC-001-persistence-threshold.md) | Partial |
+| 저장 전 평가 | Policy/Permission 거절 또는 unavailable | fail-closed, lifecycle 미생성 | Message Query와 AI 실행 | [TC-001](test-cases/TC-001-persistence-threshold.md) | Partial |
+| REST ingress | 필수 source field와 source-qualified routingRef가 유효함 | owner field와 routing constraint를 routingRef에서 읽고 application request로 mapping | body 외 owner 추론 | [TC-008](test-cases/TC-008-user-returned-rest-contract.md) | Automated |
+| REST ingress | connectionType 누락·비양수 또는 잘못된 body | 4xx Problem Details, application 미호출 | lifecycle write와 외부 작업 | [TC-008](test-cases/TC-008-user-returned-rest-contract.md) | Automated |
 | lifecycle 생성 | 새로운 period와 Trigger | `DETECTED` row 하나 생성, 최초 처리 권한 획득 | 중복 row | [TC-002](test-cases/TC-002-lifecycle-creation-idempotency.md) | Planned |
 | lifecycle 생성 | 동일 absence period 또는 동일 correlation Trigger retry | 기존 snapshot 반환 | 새 작업과 새 side effect | [TC-002](test-cases/TC-002-lifecycle-creation-idempotency.md) | Planned |
 | lifecycle 생성 | 같은 tenant의 Trigger가 다른 user/period를 참조 | 계약 충돌 | 기존 lifecycle 정보 노출 | [TC-002](test-cases/TC-002-lifecycle-creation-idempotency.md) | Planned |
@@ -48,6 +50,7 @@ Verification 상태와 TC별 실행 결과의 단일 원천은 [상위 Verificat
 | 검증 대상 | 계획한 테스트 수준 | 실제 사용할 컴포넌트 | 검증하지 않는 경계 |
 |---|---|---|---|
 | Eligibility와 persistence threshold | Unit / Workflow | Domain policy, application use case | 실제 upstream 인증과 HTTP mapping |
+| USER_RETURNED REST ingress | Controller / Contract + Application Unit | request validation, controller mapping, application source contract, Test Double | upstream Presence 상태 판정 |
 | Lifecycle unique constraint | Persistence Integration / Concurrency | 운영 계열 RDB, schema, JDBC adapter | 운영 트래픽 규모와 모든 isolation 조합 |
 | Message selection 상태 반영 | Workflow / Persistence Integration | application flow, repository, Query Port Stub | Message owner 내부 DB와 Queue retry |
 | Confirmation/expiration 경쟁 | Workflow / Persistence Integration / Concurrency | use case, repository, DB current time | 실제 Client와 network delivery |

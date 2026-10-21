@@ -85,6 +85,19 @@ class ReturnedMessageTriggerServiceTests {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service.handle(request(0)))
                 .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.handle(request(-1)))
+                .isInstanceOf(IllegalArgumentException.class);
+        verifyNoInteractions(repository, messageQuery, confirmationSender, accessEvaluator);
+    }
+
+    @Test
+    void invalidSourceTimeContractIsRejectedBeforeSideEffects() {
+        assertThatThrownBy(() -> service.handle(request(
+                1, NOW, NOW, NOW.plusSeconds(60))))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.handle(request(
+                1, NOW.minusSeconds(60), NOW, NOW.minusSeconds(1))))
+                .isInstanceOf(IllegalArgumentException.class);
         verifyNoInteractions(repository, messageQuery, confirmationSender, accessEvaluator);
     }
 
@@ -185,16 +198,28 @@ class ReturnedMessageTriggerServiceTests {
     }
 
     private ReturnedMessageRequest request(Integer connectionType) {
+        return request(
+                connectionType,
+                NOW.minus(Duration.ofMinutes(5)),
+                NOW,
+                NOW.plusSeconds(60));
+    }
+
+    private ReturnedMessageRequest request(
+            Integer connectionType,
+            Instant offlineSince,
+            Instant returnedAt,
+            Instant triggerExpiresAt) {
         return new ReturnedMessageRequest(
                 "request-1",
                 "trigger-1",
                 "tenant-1",
                 "user-1",
                 "period-1",
-                NOW.minus(Duration.ofMinutes(5)),
-                NOW,
-                NOW,
-                NOW.plusSeconds(60),
+                offlineSince,
+                returnedAt,
+                returnedAt,
+                triggerExpiresAt,
                 RoutingRef.forClientSession(
                         "tenant-1", "user-1", "target-1",
                         new RoutingScope("ABSENCE_PERIOD", "period-1"), connectionType));
