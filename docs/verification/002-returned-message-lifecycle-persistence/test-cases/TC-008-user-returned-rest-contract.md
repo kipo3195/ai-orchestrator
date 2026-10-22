@@ -36,7 +36,7 @@ Messenger Client Ingress가 제출한 source-qualified `USER_RETURNED` HTTP body
 
 ### Rationale
 
-Controller slice는 HTTP status, Problem Details, routingRef mapping과 application 호출 여부를 관찰할 수 있다. Application unit test는 legacy 숫자의 의미를 해석하지 않으면서 양수 constraint만 허용하는 방어적 계약을 외부 I/O 없이 검증한다.
+Controller slice는 HTTP status, 성공 응답 body, Problem Details, routingRef mapping과 application 호출 여부를 관찰할 수 있다. Application unit test는 legacy 숫자의 의미를 해석하지 않으면서 양수 constraint만 허용하는 방어적 계약을 외부 I/O 없이 검증한다.
 
 ## Preconditions — Given
 
@@ -74,7 +74,7 @@ Controller slice는 HTTP status, Problem Details, routingRef mapping과 applicat
 
 ## Expected Results — Then
 
-1. 정상 body는 `202 Accepted`로 응답한다.
+1. 정상 body는 `200 OK`로 응답하고 requestId, triggerId, outcome, reason과 lifecycle status를 반환한다.
 2. tenantId, userId, targetRef와 connectionType은 `routingRef`에서 application request로 전달한다.
 3. routing scope는 `ABSENCE_PERIOD + absencePeriodId`로 생성한다.
 4. connectionType이 누락되거나 비양수이면 4xx로 거절하고 lifecycle/application 처리를 시작하지 않는다.
@@ -105,8 +105,8 @@ Controller slice는 HTTP status, Problem Details, routingRef mapping과 applicat
 
 | 항목 | 값 |
 |---|---|
-| Executed At | 2026-10-21 17:48 KST |
-| Commit | `d1b6b58` |
+| Executed At | 2026-10-22 10:43 KST |
+| Commit | `5c9e3f1` |
 | Working Tree | Modified |
 | Environment | Java 17.0.19, Gradle 9.7.1 |
 | Command | 이 TC의 `Execution Command` |

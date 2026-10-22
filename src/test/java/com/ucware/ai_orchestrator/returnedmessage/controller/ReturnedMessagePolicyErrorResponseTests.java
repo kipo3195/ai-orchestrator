@@ -1,6 +1,7 @@
 package com.ucware.ai_orchestrator.returnedmessage.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -112,7 +113,12 @@ class ReturnedMessagePolicyErrorResponseTests {
                                   }
                                 }
                                 """))
-                .andExpect(status().isAccepted());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.requestId").value("request-1"))
+                .andExpect(jsonPath("$.triggerId").value("trigger-1"))
+                .andExpect(jsonPath("$.outcome").value("REJECTED"))
+                .andExpect(jsonPath("$.reason").value("test"))
+                .andExpect(jsonPath("$.status").value(nullValue()));
 
         ArgumentCaptor<ReturnedMessageRequest> requestCaptor =
                 ArgumentCaptor.forClass(ReturnedMessageRequest.class);

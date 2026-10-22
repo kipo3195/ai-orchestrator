@@ -60,7 +60,8 @@ public class ReturnedMessageController {
                         request.occurredAt(),
                         request.expiresAt(),
                         routingRef));
-        return ResponseEntity.accepted().body(ReturnedMessageResponse.from(result));
+        return ResponseEntity.ok(ReturnedMessageResponse.from(
+                result, request.requestId(), request.triggerId()));
     }
 
     @PostMapping("/{requestId}/confirmations")
@@ -137,9 +138,10 @@ public class ReturnedMessageController {
     }
 
     public record ReturnedMessageResponse(
+            String requestId,
+            String triggerId,
             ReturnedMessageOperationResult.Outcome outcome,
             String reason,
-            String requestId,
             String status,
             Integer unreadCount,
             Instant confirmationExpiresAt,
@@ -149,10 +151,22 @@ public class ReturnedMessageController {
         // 정적 팩토리 함수
         static ReturnedMessageResponse from(ReturnedMessageOperationResult result) {
             ReturnedMessageLifecycle lifecycle = result.lifecycle();
+            return from(
+                    result,
+                    lifecycle == null ? null : lifecycle.requestId(),
+                    lifecycle == null ? null : lifecycle.triggerId());
+        }
+
+        static ReturnedMessageResponse from(
+                ReturnedMessageOperationResult result,
+                String requestId,
+                String triggerId) {
+            ReturnedMessageLifecycle lifecycle = result.lifecycle();
             return new ReturnedMessageResponse(
+                    requestId,
+                    triggerId,
                     result.outcome(),
                     result.reason(),
-                    lifecycle == null ? null : lifecycle.requestId(),
                     lifecycle == null ? null : lifecycle.status().name(),
                     lifecycle == null ? null : lifecycle.unreadCount(),
                     lifecycle == null ? null : lifecycle.confirmationExpiresAt(),
