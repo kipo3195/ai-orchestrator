@@ -5,7 +5,7 @@
 | Verification | [Returned Message Lifecycle Persistence Verification](../README.md) |
 | Test Level | Workflow / Persistence Integration / Concurrency |
 
-Required 여부, 자동화 상태와 `Last Verification Execution` 기준 실행 결과는 [상위 Verification 문서](../README.md)에서 관리한다. 이 문서의 `Last Execution`은 해당 TC의 최근 단독 또는 전체 실행을 기록하며, 단독 실행만으로 상위 Verification의 상태를 변경하지 않는다.
+Required 여부, 시나리오 리뷰 상태, 자동화 상태, Assertion 리뷰 상태와 `Last Verification Execution` 기준 실행 결과는 [상위 Verification 문서](../README.md)에서 관리한다. 이 문서의 `Scenario Review`와 `Assertion Review`는 각 최신 리뷰 증적을, `Last Execution`은 해당 TC의 최근 단독 또는 전체 실행을 기록한다. 단독 실행만으로 상위 Verification의 상태를 변경하지 않는다.
 
 ## Verification Purpose
 
@@ -77,6 +77,28 @@ workflow 테스트는 평가 순서와 외부 호출 부재를 검증하고, 실
 7. conditional update 0건은 현재 lifecycle snapshot을 다시 조회한 멱등 결과이며 새 외부 작업을 시작하지 않는다.
 8. 잘못된 correlation 또는 소유자가 다른 요청은 lifecycle 정보를 노출하지 않고 상태를 변경하지 않는다.
 
+## Scenario Review
+
+| 항목 | 값 |
+|---|---|
+| Status | Ready for Review |
+| Reviewed At | - |
+| Reviewer | - |
+| Reviewed Commit | - |
+| Review Evidence | - |
+| Review Notes | 신규 시나리오 리뷰 대기 |
+
+### Scenario Review Checklist
+
+| 검토 항목 | 판정 | 리뷰 메모 |
+|---|---|---|
+| 목적과 요구사항 추적성 | Pending | - |
+| 위험과 테스트 경계 | Pending | - |
+| Given 조건 | Pending | - |
+| When 절차 | Pending | - |
+| Then 기대 결과 | Pending | - |
+| 테스트 데이터와 한계 | Pending | - |
+
 ## Automated Test Mapping
 
 | 테스트 클래스 | 테스트 메서드 | 검증하는 기대 결과 |
@@ -84,6 +106,28 @@ workflow 테스트는 평가 순서와 외부 호출 부재를 검증하고, 실
 | TBD | confirmation workflow and policy reevaluation tests | Then 1~3, 5, 7, 8 |
 | TBD | conditional update expiration boundary tests | Then 4, 6, 7 |
 | TBD | concurrent YES/NO/expiration race tests | Then 4, 5 |
+
+## Assertion Review
+
+| 항목 | 값 |
+|---|---|
+| Status | Draft |
+| Reviewed At | - |
+| Reviewer | - |
+| Reviewed Commit | - |
+| Review Evidence | - |
+| Review Notes | 자동화 구현과 매핑 완료 후 assertion 리뷰 필요 |
+
+### Assertion Review Checklist
+
+| 검토 항목 | 판정 | 리뷰 메모 |
+|---|---|---|
+| Expected Results와 assertion 매핑 | Pending | - |
+| 반환값, 상태와 사유의 정확성 | Pending | - |
+| 상태 전이와 persistence 부수 효과 | Pending | - |
+| 외부 호출과 부수 효과 부재 | Pending | - |
+| 오류, 경계값과 경쟁 조건 | Pending | - |
+| 회귀 실패 감지 가능성 | Pending | - |
 
 ## Execution Command
 

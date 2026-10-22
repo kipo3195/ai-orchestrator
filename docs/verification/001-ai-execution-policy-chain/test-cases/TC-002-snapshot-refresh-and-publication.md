@@ -5,7 +5,7 @@
 | Verification | [AI Execution Policy Chain Verification](../README.md) |
 | Test Level | Unit / Integration |
 
-Required 여부, 자동화 상태와 `Last Verification Execution` 기준 실행 결과는 [상위 Verification 문서](../README.md)에서 관리한다. 이 문서의 `Last Execution`은 해당 TC의 최근 단독 또는 전체 실행을 기록하며, 단독 실행만으로 상위 Verification의 상태를 변경하지 않는다.
+Required 여부, 시나리오 리뷰 상태, 자동화 상태, Assertion 리뷰 상태와 `Last Verification Execution` 기준 실행 결과는 [상위 Verification 문서](../README.md)에서 관리한다. 이 문서의 `Scenario Review`와 `Assertion Review`는 각 최신 리뷰 증적을, `Last Execution`은 해당 TC의 최근 단독 또는 전체 실행을 기록한다. 단독 실행만으로 상위 Verification의 상태를 변경하지 않는다.
 
 ## Verification Purpose
 
@@ -72,6 +72,28 @@ Global과 Feature Policy 전체가 하나의 불변 snapshot으로 게시되고,
 5. Snapshot은 입력 Map을 방어적으로 복사하고 변경 불가능하게 노출한다.
 6. JDBC adapter는 Global row와 `feature_key`를 올바른 Domain key로 변환한다.
 
+## Scenario Review
+
+| 항목 | 값 |
+|---|---|
+| Status | Ready for Review |
+| Reviewed At | - |
+| Reviewer | - |
+| Reviewed Commit | - |
+| Review Evidence | - |
+| Review Notes | 신규 시나리오 리뷰 대기 |
+
+### Scenario Review Checklist
+
+| 검토 항목 | 판정 | 리뷰 메모 |
+|---|---|---|
+| 목적과 요구사항 추적성 | Pending | - |
+| 위험과 테스트 경계 | Pending | - |
+| Given 조건 | Pending | - |
+| When 절차 | Pending | - |
+| Then 기대 결과 | Pending | - |
+| 테스트 데이터와 한계 | Pending | - |
+
 ## Automated Test Mapping
 
 | 테스트 클래스 | 테스트 메서드 | 검증하는 기대 결과 |
@@ -82,6 +104,28 @@ Global과 Feature Policy 전체가 하나의 불변 snapshot으로 게시되고,
 | [PolicySnapshotRefresherTests](../../../../src/test/java/com/ucware/ai_orchestrator/policy/infrastructure/scheduling/PolicySnapshotRefresherTests.java) | `keepsLastValidSnapshotWhenScheduledRefreshFails`, `keepsLastValidSnapshotWhenNewSnapshotValidationFails` | Then 4 |
 | [AiPolicySnapshotTests](../../../../src/test/java/com/ucware/ai_orchestrator/policy/domain/AiPolicySnapshotTests.java) | `copiesGlobalAndFeaturePoliciesDefensively`, `validatesGlobalAndFeatureEntries` | Then 5 및 publication validation |
 | [JdbcPolicySnapshotRepositoryTests](../../../../src/test/java/com/ucware/ai_orchestrator/policy/infrastructure/persistence/JdbcPolicySnapshotRepositoryTests.java) | `loadsGlobalAndFeaturePoliciesTogether`, `returnsEmptyCollectionsWhenPoliciesDoNotExist` | Then 6 및 빈 DB 결과 |
+
+## Assertion Review
+
+| 항목 | 값 |
+|---|---|
+| Status | Ready for Review |
+| Reviewed At | - |
+| Reviewer | - |
+| Reviewed Commit | - |
+| Review Evidence | - |
+| Review Notes | 신규 assertion 리뷰 대기 |
+
+### Assertion Review Checklist
+
+| 검토 항목 | 판정 | 리뷰 메모 |
+|---|---|---|
+| Expected Results와 assertion 매핑 | Pending | - |
+| 반환값, 상태와 사유의 정확성 | Pending | - |
+| 상태 전이와 persistence 부수 효과 | Pending | - |
+| 외부 호출과 부수 효과 부재 | Pending | - |
+| 오류, 경계값과 경쟁 조건 | Pending | - |
+| 회귀 실패 감지 가능성 | Pending | - |
 
 ## Execution Command
 

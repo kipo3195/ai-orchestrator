@@ -2,13 +2,13 @@
 
 | 항목 | 값 |
 |---|---|
-| Status | Verified |
+| Status | Stale |
 | Last Verified At | 2026-10-14 17:45 KST |
 | Verified Commit | `ac204af` |
-| Stale Since | - |
-| Stale Reason | - |
+| Stale Since | 2026-10-22 |
+| Stale Reason | 시나리오·Assertion 리뷰 완료 기준 도입에 따라 모든 Required TC의 신규 리뷰가 필요하다. |
 
-이 문서는 해당 Verification의 현재 상태와 TC별 자동화·실행 상태의 단일 원천이다. 최신 실행의 환경, 명령과 상세 집계는 `Last Verification Execution`에 연결된 evidence에 기록한다. 상태 정의와 전환 규칙은 [Verification 상태 관리](../README.md#상태-관리)를 따른다.
+이 문서는 해당 Verification의 현재 상태와 TC별 Required 여부, 시나리오 리뷰, 자동화 상태, Assertion 리뷰와 실행 상태의 단일 원천이다. 최신 리뷰의 상세 증적은 각 TC의 `Scenario Review`와 `Assertion Review`에, 최신 실행의 환경, 명령과 상세 집계는 `Last Verification Execution`에 연결된 evidence에 기록한다. 상태 정의와 전환 규칙은 [Verification 상태 관리](../README.md#상태-관리)를 따른다.
 
 ## Objective
 
@@ -75,6 +75,8 @@ Domain과 Application 단위 테스트로 snapshot 불변성, 정책 결정 행�
 5. JDBC, Redis와 User DB fallback의 핵심 adapter 계약이 자동화되어 있다.
 6. Conversation Start에서 Global, Feature와 User 정책별 AI port 호출 차단 및 전체 허용 경로가 검증된다.
 7. 모든 Required TC가 동일한 clean commit에서 실패와 skip 없이 통과하고 실행 evidence가 연결된다.
+8. 모든 Required TC의 시나리오가 현재 Verification Basis와 범위에 대해 리뷰되고 `Approved` 상태다.
+9. 모든 Required TC의 실제 테스트 assertion이 Expected Results를 충분히 검증한다고 리뷰되고 `Approved` 상태다.
 
 공통 완료 기준은 [Verification 공통 완료 기준](../README.md#공통-완료-기준)을 따른다.
 
@@ -84,15 +86,15 @@ Domain과 Application 단위 테스트로 snapshot 불변성, 정책 결정 행�
 
 ## Test Summary
 
-| TC ID | 검증 항목 | 테스트 수준 | Required | 자동화 상태 | 실행 결과 |
-|---|---|---|---|---|---|
-| TC-001 | [Snapshot 초기 상태](test-cases/TC-001-snapshot-initialization.md) | Unit | Yes | Automated | Passed |
-| TC-002 | [Snapshot refresh와 게시](test-cases/TC-002-snapshot-refresh-and-publication.md) | Unit / Integration | Yes | Automated | Passed |
-| TC-003 | [Global/Feature 평가](test-cases/TC-003-global-feature-evaluation.md) | Unit | Yes | Automated | Passed |
-| TC-004 | [User Policy resolution](test-cases/TC-004-user-policy-resolution.md) | Unit / Integration | Yes | Automated | Passed |
-| TC-005 | [정책 체인 short-circuit](test-cases/TC-005-policy-chain-short-circuit.md) | Unit | Yes | Automated | Passed |
-| TC-006 | [Conversation Start 실행 차단](test-cases/TC-006-conversation-start-enforcement.md) | Workflow | Yes | Automated | Passed |
-| TC-007 | [동시 snapshot 게시](test-cases/TC-007-concurrent-snapshot-publication.md) | Unit | Yes | Automated | Passed |
+| TC ID | 검증 항목 | 테스트 수준 | Required | 시나리오 리뷰 | 자동화 상태 | Assertion 리뷰 | 실행 결과 |
+|---|---|---|---|---|---|---|---|
+| TC-001 | [Snapshot 초기 상태](test-cases/TC-001-snapshot-initialization.md) | Unit | Yes | Ready for Review | Automated | Ready for Review | Passed |
+| TC-002 | [Snapshot refresh와 게시](test-cases/TC-002-snapshot-refresh-and-publication.md) | Unit / Integration | Yes | Ready for Review | Automated | Ready for Review | Passed |
+| TC-003 | [Global/Feature 평가](test-cases/TC-003-global-feature-evaluation.md) | Unit | Yes | Ready for Review | Automated | Ready for Review | Passed |
+| TC-004 | [User Policy resolution](test-cases/TC-004-user-policy-resolution.md) | Unit / Integration | Yes | Ready for Review | Automated | Ready for Review | Passed |
+| TC-005 | [정책 체인 short-circuit](test-cases/TC-005-policy-chain-short-circuit.md) | Unit | Yes | Ready for Review | Automated | Ready for Review | Passed |
+| TC-006 | [Conversation Start 실행 차단](test-cases/TC-006-conversation-start-enforcement.md) | Workflow | Yes | Ready for Review | Automated | Ready for Review | Passed |
+| TC-007 | [동시 snapshot 게시](test-cases/TC-007-concurrent-snapshot-publication.md) | Unit | Yes | Ready for Review | Automated | Ready for Review | Passed |
 
 ## Execution Guide
 
@@ -161,7 +163,7 @@ Domain과 Application 단위 테스트로 snapshot 불변성, 정책 결정 행�
 ## Overall Assessment
 
 - Assessment Scope: Unit, H2 JDBC Integration Slice, Workflow Unit and JVM Concurrency
-- Basis: clean commit `ac204af`에서 모든 Required TC를 포함하는 Verification Tests 49개와 전체 회귀 테스트 66개가 실패·skip 없이 통과했다.
+- Basis: clean commit `ac204af`에서 모든 Required TC를 포함하는 Verification Tests 49개와 전체 회귀 테스트 66개가 실패·skip 없이 통과한 기존 실행 이력이 있다. 신규 시나리오·Assertion 리뷰 완료 기준은 아직 충족하지 않았다.
 
 ### Verified Behaviors
 
@@ -176,7 +178,8 @@ Domain과 Application 단위 테스트로 snapshot 불변성, 정책 결정 행�
 
 - 운영 DB, 실제 Redis, scheduler 및 HTTP adapter 연결 경계는 검증하지 않았다.
 - 사용자별 기능 정책은 현재 범위에 포함되지 않는다.
+- 모든 Required TC가 신규 시나리오·Assertion 리뷰 대기 상태이므로 현재 완료 기준의 `Approved` 조건을 충족하지 않는다.
 
 ### Conclusion
 
-clean commit `ac204af`에서 모든 Required TC와 전체 회귀 테스트가 통과했으므로 현재 정의된 자동화 검증 범위에서 `Verified`로 판정한다. 운영 DB, 실제 Redis와 외부 adapter를 포함하는 통합 경계는 후속 검증 대상으로 유지한다.
+clean commit `ac204af`에서 모든 Required TC와 전체 회귀 테스트가 통과한 기존 `Verified` 이력은 보존한다. 다만 시나리오·Assertion 리뷰 완료 기준 도입 후 모든 Required TC가 두 리뷰 모두 `Ready for Review` 상태이므로 현재 상태는 `Stale`이다. 모든 Required TC의 시나리오와 assertion을 신규 리뷰해 `Approved`로 전환하고 공통 완료 기준에 따라 재검증해야 한다.

@@ -8,7 +8,7 @@
 | Stale Since | - |
 | Stale Reason | - |
 
-이 문서는 해당 Verification의 현재 상태와 TC별 자동화·실행 상태의 단일 원천이다. 최신 실행의 환경, 명령과 상세 집계는 `Last Verification Execution`에 연결된 evidence에 기록한다. 상태 정의와 전환 규칙은 [Verification 상태 관리](../README.md#상태-관리)를 따른다.
+이 문서는 해당 Verification의 현재 상태와 TC별 Required 여부, 시나리오 리뷰, 자동화 상태, Assertion 리뷰와 실행 상태의 단일 원천이다. 최신 리뷰의 상세 증적은 각 TC의 `Scenario Review`와 `Assertion Review`에, 최신 실행의 환경, 명령과 상세 집계는 `Last Verification Execution`에 연결된 evidence에 기록한다. 상태 정의와 전환 규칙은 [Verification 상태 관리](../README.md#상태-관리)를 따른다.
 
 ## Objective
 
@@ -58,14 +58,16 @@
 ## Test Summary
 
 <!--
+시나리오 리뷰: Draft | Ready for Review | In Review | Changes Requested | Approved | Stale
 자동화 상태: Planned | Partial | Automated | Manual
+Assertion 리뷰: Draft | Ready for Review | In Review | Changes Requested | Approved | Stale
 실행 결과: Not Run | Passed | Failed | Blocked
 실행 결과는 Last Verification Execution에 연결된 evidence에서 해당 TC가 얻은 결과를 기록한다.
 -->
 
-| TC ID | 검증 항목 | 테스트 수준 | Required | 자동화 상태 | 실행 결과 |
-|---|---|---|---|---|---|
-| TC-001 | [검증 항목](test-cases/TC-001-example.md) | Unit | Yes | Planned | Not Run |
+| TC ID | 검증 항목 | 테스트 수준 | Required | 시나리오 리뷰 | 자동화 상태 | Assertion 리뷰 | 실행 결과 |
+|---|---|---|---|---|---|---|---|
+| TC-001 | [검증 항목](test-cases/TC-001-example.md) | Unit | Yes | Draft | Planned | Draft | Not Run |
 
 ## Execution Guide
 

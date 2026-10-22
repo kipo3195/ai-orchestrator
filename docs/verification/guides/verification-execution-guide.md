@@ -112,6 +112,8 @@ Verification README의 `Verification Tests` 명령을 실행한다. 이 명령�
 
 같은 실행에 포함된 각 TC의 `Last Execution`도 `Execution Scope: Verification`으로 갱신하고 상위 `Last Verification Execution`을 참조한다. Verification의 `Test Summary`와 상태는 연결된 evidence의 전체 실행 결과를 기준으로 갱신한다.
 
+전체 실행이 통과했더라도 모든 Required TC의 시나리오 리뷰와 Assertion 리뷰 상태가 모두 `Approved`가 아니면 Verification을 `Verified`로 변경하지 않는다.
+
 ## 6. Evidence 관리
 
 Verification 전체 실행은 다음 경로에 요약하고 `Last Verification Execution`에서 연결한다.

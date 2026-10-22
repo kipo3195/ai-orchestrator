@@ -8,9 +8,9 @@
 | Stale Since | - |
 | Stale Reason | - |
 
-이 문서는 해당 Verification의 현재 상태와 TC별 자동화·실행 상태의 단일 원천이다. 최신 실행의 환경, 명령과 상세 집계는 `Last Verification Execution`에 연결된 evidence에 기록한다. 상태 정의와 전환 규칙은 [Verification 상태 관리](../README.md#상태-관리)를 따른다.
+이 문서는 해당 Verification의 현재 상태와 TC별 Required 여부, 시나리오 리뷰, 자동화 상태, Assertion 리뷰와 실행 상태의 단일 원천이다. 최신 리뷰의 상세 증적은 각 TC의 `Scenario Review`와 `Assertion Review`에, 최신 실행의 환경, 명령과 상세 집계는 `Last Verification Execution`에 연결된 evidence에 기록한다. 상태 정의와 전환 규칙은 [Verification 상태 관리](../README.md#상태-관리)를 따른다.
 
-현재 production code와 일부 자동화 테스트는 구현되어 있다. 다만 Required TC 전체의 테스트 매핑과 동일 조건 실행 evidence가 아직 없으므로, 구현 존재와 Verification 완료를 구분해 상태를 `In Progress`로 유지한다.
+현재 production code와 일부 자동화 테스트는 구현되어 있다. 다만 모든 Required TC가 신규 시나리오 리뷰 대기 상태이고, 자동화된 TC의 Assertion 리뷰와 Required TC 전체의 테스트 매핑 및 동일 조건 실행 evidence도 아직 완료되지 않았으므로 구현 존재와 Verification 완료를 구분해 상태를 `In Progress`로 유지한다.
 
 ## Objective
 
@@ -56,7 +56,7 @@ Returned Message Topics 후보만 durable lifecycle로 저장되고, REST retry�
 
 동시성 테스트는 독립 application instance를 나타내는 두 개 이상의 실행 주체가 같은 DB를 사용하도록 구성하고 barrier 또는 latch로 insert/update 시작점을 맞춘다. 실제 시간이 흐르기를 기다리지 않고 과거·미래 만료 시각과 DB 시각 경계 fixture를 사용한다. 외부 port를 호출할 때 Spring transaction 활성 여부를 관찰하여 외부 I/O와 local DB transaction이 분리되었는지 확인한다.
 
-구현된 범위는 각 TC의 `Automated Test Mapping`에 실제 production class와 테스트 메서드를 연결한다. 아직 매핑되지 않았거나 assertion이 요구사항 일부만 확인하는 항목은 `Planned` 또는 `Partial`로 유지하고, 설계와 구현의 차이는 `Known Risks and Gaps`에 기록한다.
+구현된 범위는 각 TC의 `Automated Test Mapping`에 실제 production class와 테스트 메서드를 연결한다. 아직 매핑되지 않았거나 assertion이 요구사항 일부만 확인하는 항목은 `Planned` 또는 `Partial`로 유지한다. 자동화 상태가 `Automated`가 된 TC는 실제 assertion의 충분성을 `Assertion Review`에서 별도로 검토하고, 설계와 구현의 차이는 `Known Risks and Gaps`에 기록한다.
 
 ## Completion Criteria
 
@@ -71,6 +71,8 @@ Returned Message Topics 후보만 durable lifecycle로 저장되고, REST retry�
 7. 상태와 execution correlation이 일치하지 않는 결과 및 terminal 상태 이후 결과가 lifecycle을 변경하지 않는다.
 8. 외부 I/O 호출 시 local DB transaction이 활성 상태가 아니며 Application/Domain에 JDBC 또는 SQL 의존성이 없다.
 9. 모든 Required TC가 동일한 clean commit에서 실패와 skip 없이 통과하고 실행 evidence가 연결된다.
+10. 모든 Required TC의 시나리오가 현재 Verification Basis와 범위에 대해 리뷰되고 `Approved` 상태다.
+11. 모든 Required TC의 실제 테스트 assertion이 Expected Results를 충분히 검증한다고 리뷰되고 `Approved` 상태다.
 
 공통 완료 기준은 [Verification 공통 완료 기준](../README.md#공통-완료-기준)을 따른다.
 
@@ -80,16 +82,16 @@ Returned Message Topics 후보만 durable lifecycle로 저장되고, REST retry�
 
 ## Test Summary
 
-| TC ID | 검증 항목 | 테스트 수준 | Required | 자동화 상태 | 실행 결과 |
-|---|---|---|---|---|---|
-| TC-001 | [Lifecycle 저장 임계점](test-cases/TC-001-persistence-threshold.md) | Unit / Workflow | Yes | Partial | Not Run |
-| TC-002 | [Lifecycle 생성 멱등성과 격리](test-cases/TC-002-lifecycle-creation-idempotency.md) | Persistence Integration / Concurrency | Yes | Planned | Not Run |
-| TC-003 | [메시지 선정과 확인 대기 전이](test-cases/TC-003-message-selection-transition.md) | Workflow / Persistence Integration | Yes | Planned | Not Run |
-| TC-004 | [사용자 확인과 만료 경쟁](test-cases/TC-004-confirmation-expiration-race.md) | Workflow / Persistence Integration / Concurrency | Yes | Planned | Not Run |
-| TC-005 | [Sweeper와 non-terminal 복구](test-cases/TC-005-sweeper-and-recovery.md) | Integration / Concurrency | Yes | Planned | Not Run |
-| TC-006 | [상태 및 execution correlation 보호](test-cases/TC-006-state-correlation-guard.md) | Domain / Persistence Integration | Yes | Planned | Not Run |
-| TC-007 | [Transaction과 계층 경계](test-cases/TC-007-transaction-and-layer-boundary.md) | Architecture / Integration | Yes | Planned | Not Run |
-| TC-008 | [USER_RETURNED REST ingress 계약](test-cases/TC-008-user-returned-rest-contract.md) | Controller / Contract + Application Unit | Yes | Automated | Not Run |
+| TC ID | 검증 항목 | 테스트 수준 | Required | 시나리오 리뷰 | 자동화 상태 | Assertion 리뷰 | 실행 결과 |
+|---|---|---|---|---|---|---|---|
+| TC-001 | [Lifecycle 저장 임계점](test-cases/TC-001-persistence-threshold.md) | Unit / Workflow | Yes | Ready for Review | Partial | Draft | Not Run |
+| TC-002 | [Lifecycle 생성 멱등성과 격리](test-cases/TC-002-lifecycle-creation-idempotency.md) | Persistence Integration / Concurrency | Yes | Ready for Review | Planned | Draft | Not Run |
+| TC-003 | [메시지 선정과 확인 대기 전이](test-cases/TC-003-message-selection-transition.md) | Workflow / Persistence Integration | Yes | Ready for Review | Planned | Draft | Not Run |
+| TC-004 | [사용자 확인과 만료 경쟁](test-cases/TC-004-confirmation-expiration-race.md) | Workflow / Persistence Integration / Concurrency | Yes | Ready for Review | Planned | Draft | Not Run |
+| TC-005 | [Sweeper와 non-terminal 복구](test-cases/TC-005-sweeper-and-recovery.md) | Integration / Concurrency | Yes | Ready for Review | Planned | Draft | Not Run |
+| TC-006 | [상태 및 execution correlation 보호](test-cases/TC-006-state-correlation-guard.md) | Domain / Persistence Integration | Yes | Ready for Review | Planned | Draft | Not Run |
+| TC-007 | [Transaction과 계층 경계](test-cases/TC-007-transaction-and-layer-boundary.md) | Architecture / Integration | Yes | Ready for Review | Planned | Draft | Not Run |
+| TC-008 | [USER_RETURNED REST ingress 계약](test-cases/TC-008-user-returned-rest-contract.md) | Controller / Contract + Application Unit | Yes | Ready for Review | Automated | Ready for Review | Not Run |
 
 ## Execution Guide
 
@@ -159,7 +161,7 @@ Required TC 전체를 동일한 clean commit과 환경에서 실행한 evidence�
 ## Overall Assessment
 
 - Assessment Scope: Test Design and Targeted Automation
-- Basis: Decision 003과 Engineering 003의 요구사항을 Required TC로 추적했고 REST ingress 계약을 실제 코드와 테스트에 매핑했지만, Required TC 전체 실행 evidence는 아직 없다.
+- Basis: Decision 003과 Engineering 003의 요구사항을 Required TC로 추적했고 REST ingress 계약을 실제 코드와 테스트에 매핑했지만, 모든 Required TC의 신규 시나리오·Assertion 리뷰와 Required TC 전체 실행 evidence는 아직 완료되지 않았다.
 
 ### Verified Behaviors
 
@@ -168,9 +170,11 @@ Required TC 전체를 동일한 clean commit과 환경에서 실행한 evidence�
 ### Remaining Limitations
 
 - TC-001은 일부만 자동화되었고 TC-002~TC-007의 자동화 테스트 매핑은 완료되지 않았다. TC-008은 자동화되고 단독 실행됐지만 상위 Verification 전체 실행 evidence에는 포함되지 않았다.
+- 모든 Required TC의 시나리오 리뷰 상태가 `Ready for Review`이며 아직 `Approved`된 TC가 없다.
+- TC-008의 Assertion 리뷰는 `Ready for Review`이고, 자동화가 불완전한 TC-001~TC-007의 Assertion 리뷰는 `Draft`다.
 - migration과 JDBC 구현은 존재하지만 운영 계열 DB에서의 동시성·transaction 보장은 아직 검증되지 않았다.
 - Decision 004 범위의 외부 실행 멱등성과 전체 복구는 이 Verification만으로 보장하지 않는다.
 
 ### Conclusion
 
-현재 production 구현과 일부 자동화 테스트는 존재하지만 Required TC 전체의 매핑과 실행 evidence가 없으므로 Returned Message lifecycle 동작을 아직 검증한 것으로 판정하지 않는다. 실제 테스트 매핑을 완성하고 모든 Required TC가 같은 clean commit과 환경에서 통과한 evidence를 연결한 경우에만 상태를 `Verified`로 변경한다.
+현재 production 구현과 일부 자동화 테스트는 존재하지만 Required TC의 시나리오·Assertion 리뷰, 전체 테스트 매핑과 실행 evidence가 완료되지 않았으므로 Returned Message lifecycle 동작을 아직 검증한 것으로 판정하지 않는다. 모든 Required TC의 시나리오와 assertion을 `Approved`로 전환하고 실제 테스트 매핑을 완성한 뒤, 같은 clean commit과 환경에서 통과한 evidence를 연결한 경우에만 상태를 `Verified`로 변경한다.

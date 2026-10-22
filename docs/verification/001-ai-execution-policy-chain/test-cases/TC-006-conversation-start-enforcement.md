@@ -5,7 +5,7 @@
 | Verification | [AI Execution Policy Chain Verification](../README.md) |
 | Test Level | Workflow |
 
-Required 여부, 자동화 상태와 `Last Verification Execution` 기준 실행 결과는 [상위 Verification 문서](../README.md)에서 관리한다. 이 문서의 `Last Execution`은 해당 TC의 최근 단독 또는 전체 실행을 기록하며, 단독 실행만으로 상위 Verification의 상태를 변경하지 않는다.
+Required 여부, 시나리오 리뷰 상태, 자동화 상태, Assertion 리뷰 상태와 `Last Verification Execution` 기준 실행 결과는 [상위 Verification 문서](../README.md)에서 관리한다. 이 문서의 `Scenario Review`와 `Assertion Review`는 각 최신 리뷰 증적을, `Last Execution`은 해당 TC의 최근 단독 또는 전체 실행을 기록한다. 단독 실행만으로 상위 Verification의 상태를 변경하지 않는다.
 
 ## Verification Purpose
 
@@ -69,6 +69,28 @@ Conversation Start가 예약 실행 직전에 Global → `CONVERSATION_START` Fe
 4. 모든 정책이 ON이면 AI port를 호출하고 결과를 정상적으로 라우팅한다.
 5. AI 처리 중 execution이 취소되면 결과가 취소 상태를 덮어쓰지 않는다.
 
+## Scenario Review
+
+| 항목 | 값 |
+|---|---|
+| Status | Ready for Review |
+| Reviewed At | - |
+| Reviewer | - |
+| Reviewed Commit | - |
+| Review Evidence | - |
+| Review Notes | 신규 시나리오 리뷰 대기 |
+
+### Scenario Review Checklist
+
+| 검토 항목 | 판정 | 리뷰 메모 |
+|---|---|---|
+| 목적과 요구사항 추적성 | Pending | - |
+| 위험과 테스트 경계 | Pending | - |
+| Given 조건 | Pending | - |
+| When 절차 | Pending | - |
+| Then 기대 결과 | Pending | - |
+| 테스트 데이터와 한계 | Pending | - |
+
 ## Automated Test Mapping
 
 | 테스트 클래스 | 테스트 메서드 | 검증하는 기대 결과 |
@@ -78,6 +100,28 @@ Conversation Start가 예약 실행 직전에 Global → `CONVERSATION_START` Fe
 | [ConversationStartServiceTests](../../../../src/test/java/com/ucware/ai_orchestrator/conversationstart/application/ConversationStartServiceTests.java) | `scheduledExecutionIsRejectedWhenOverallUserPolicyIsDisabled` | Then 3 |
 | [ConversationStartServiceTests](../../../../src/test/java/com/ucware/ai_orchestrator/conversationstart/application/ConversationStartServiceTests.java) | `completedResultIsRoutedUsingExecutionRoutingContext` | Then 4 |
 | [ConversationStartServiceTests](../../../../src/test/java/com/ucware/ai_orchestrator/conversationstart/application/ConversationStartServiceTests.java) | `resultDoesNotCompleteExecutionAfterRoomSessionIsCancelled` | Then 5 |
+
+## Assertion Review
+
+| 항목 | 값 |
+|---|---|
+| Status | Ready for Review |
+| Reviewed At | - |
+| Reviewer | - |
+| Reviewed Commit | - |
+| Review Evidence | - |
+| Review Notes | 신규 assertion 리뷰 대기 |
+
+### Assertion Review Checklist
+
+| 검토 항목 | 판정 | 리뷰 메모 |
+|---|---|---|
+| Expected Results와 assertion 매핑 | Pending | - |
+| 반환값, 상태와 사유의 정확성 | Pending | - |
+| 상태 전이와 persistence 부수 효과 | Pending | - |
+| 외부 호출과 부수 효과 부재 | Pending | - |
+| 오류, 경계값과 경쟁 조건 | Pending | - |
+| 회귀 실패 감지 가능성 | Pending | - |
 
 ## Execution Command
 

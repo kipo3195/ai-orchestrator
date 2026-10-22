@@ -5,7 +5,7 @@
 | Verification | [상위 Verification 문서](../README.md) |
 | Test Level | [Unit / Integration / Workflow / End-to-End / Manual] |
 
-Required 여부, 자동화 상태와 `Last Verification Execution` 기준 실행 결과는 [상위 Verification 문서](../README.md)에서 관리한다. 이 문서의 `Last Execution`은 해당 TC의 최근 단독 또는 전체 실행을 기록하며, 단독 실행만으로 상위 Verification의 상태를 변경하지 않는다.
+Required 여부, 시나리오 리뷰 상태, 자동화 상태, Assertion 리뷰 상태와 `Last Verification Execution` 기준 실행 결과는 [상위 Verification 문서](../README.md)에서 관리한다. 이 문서의 `Scenario Review`와 `Assertion Review`는 각 최신 리뷰 증적을, `Last Execution`은 해당 TC의 최근 단독 또는 전체 실행을 기록한다. 단독 실행만으로 상위 Verification의 상태를 변경하지 않는다.
 
 ## Verification Purpose
 
@@ -59,11 +59,70 @@ Required 여부, 자동화 상태와 `Last Verification Execution` 기준 실행
 2. [협력 객체 호출 여부 또는 호출 횟수]
 3. [변경되지 않아야 하는 상태 또는 부작용 부재]
 
+## Scenario Review
+
+<!--
+상태: Draft | Ready for Review | In Review | Changes Requested | Approved | Stale
+Verification Purpose, Requirement Traceability, Risk Addressed, 테스트 경계, Given/When/Then,
+Test Data와 Limitations가 상위 Verification의 보장 범위를 충분히 표현하는지 검토한다.
+Approved는 자동화 구현 또는 실행 통과를 의미하지 않는다.
+체크리스트 판정: Pending | Accepted | Changes Requested | N/A
+-->
+
+| 항목 | 값 |
+|---|---|
+| Status | Draft |
+| Reviewed At | - |
+| Reviewer | - |
+| Reviewed Commit | - |
+| Review Evidence | - |
+| Review Notes | - |
+
+### Scenario Review Checklist
+
+| 검토 항목 | 판정 | 리뷰 메모 |
+|---|---|---|
+| 목적과 요구사항 추적성 | Pending | - |
+| 위험과 테스트 경계 | Pending | - |
+| Given 조건 | Pending | - |
+| When 절차 | Pending | - |
+| Then 기대 결과 | Pending | - |
+| 테스트 데이터와 한계 | Pending | - |
+
 ## Automated Test Mapping
 
 | 테스트 클래스 | 테스트 메서드 | 검증하는 기대 결과 |
 |---|---|---|
 | [TestClass](테스트-코드-경로) | `testMethodName` | [Then 항목 번호 또는 핵심 assertion] |
+
+## Assertion Review
+
+<!--
+상태: Draft | Ready for Review | In Review | Changes Requested | Approved | Stale
+Automated Test Mapping의 실제 테스트 코드가 모든 Expected Results를 충분히 검증하는지 확인한다.
+자동화 상태가 Automated이고 체크리스트가 모두 Accepted 또는 사유가 기록된 N/A일 때만 Approved로 전환한다.
+체크리스트 판정: Pending | Accepted | Changes Requested | N/A
+-->
+
+| 항목 | 값 |
+|---|---|
+| Status | Draft |
+| Reviewed At | - |
+| Reviewer | - |
+| Reviewed Commit | - |
+| Review Evidence | - |
+| Review Notes | - |
+
+### Assertion Review Checklist
+
+| 검토 항목 | 판정 | 리뷰 메모 |
+|---|---|---|
+| Expected Results와 assertion 매핑 | Pending | - |
+| 반환값, 상태와 사유의 정확성 | Pending | - |
+| 상태 전이와 persistence 부수 효과 | Pending | - |
+| 외부 호출과 부수 효과 부재 | Pending | - |
+| 오류, 경계값과 경쟁 조건 | Pending | - |
+| 회귀 실패 감지 가능성 | Pending | - |
 
 ## Execution Command
 

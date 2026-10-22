@@ -5,7 +5,7 @@
 | Verification | [Returned Message Lifecycle Persistence Verification](../README.md) |
 | Test Level | Controller / Contract + Application Unit |
 
-Required 여부, 자동화 상태와 `Last Verification Execution` 기준 실행 결과는 [상위 Verification 문서](../README.md)에서 관리한다. 이 문서의 `Last Execution`은 해당 TC의 최근 단독 또는 전체 실행을 기록하며, 단독 실행만으로 상위 Verification의 상태를 변경하지 않는다.
+Required 여부, 시나리오 리뷰 상태, 자동화 상태, Assertion 리뷰 상태와 `Last Verification Execution` 기준 실행 결과는 [상위 Verification 문서](../README.md)에서 관리한다. 이 문서의 `Scenario Review`와 `Assertion Review`는 각 최신 리뷰 증적을, `Last Execution`은 해당 TC의 최근 단독 또는 전체 실행을 기록한다. 단독 실행만으로 상위 Verification의 상태를 변경하지 않는다.
 
 ## Verification Purpose
 
@@ -82,6 +82,28 @@ Controller slice는 HTTP status, 성공 응답 body, Problem Details, routingRef
 6. `offlineSince >= returnedAt` 등 시간 정합성 위반은 application source contract에서 side effect 전에 거절되고 HTTP 400 Problem Details로 변환된다.
 7. Orchestrator는 connectionType 1, 2의 legacy 의미를 재판정하지 않고 양수 routing constraint로 처리한다.
 
+## Scenario Review
+
+| 항목 | 값 |
+|---|---|
+| Status | Ready for Review |
+| Reviewed At | - |
+| Reviewer | - |
+| Reviewed Commit | - |
+| Review Evidence | - |
+| Review Notes | 신규 시나리오 리뷰 대기 |
+
+### Scenario Review Checklist
+
+| 검토 항목 | 판정 | 리뷰 메모 |
+|---|---|---|
+| 목적과 요구사항 추적성 | Pending | - |
+| 위험과 테스트 경계 | Pending | - |
+| Given 조건 | Pending | - |
+| When 절차 | Pending | - |
+| Then 기대 결과 | Pending | - |
+| 테스트 데이터와 한계 | Pending | - |
+
 ## Automated Test Mapping
 
 | 테스트 클래스 | 테스트 메서드 | 검증 범위 |
@@ -94,6 +116,28 @@ Controller slice는 HTTP status, 성공 응답 body, Problem Details, routingRef
 | [ReturnedMessageTriggerServiceTests](../../../../src/test/java/com/ucware/ai_orchestrator/returnedmessage/application/ReturnedMessageTriggerServiceTests.java) | `missingOrNonPositiveConnectionTypeIsRejectedAsSourceContractViolation` | Expected 4의 application 방어 검증 |
 | [ReturnedMessageTriggerServiceTests](../../../../src/test/java/com/ucware/ai_orchestrator/returnedmessage/application/ReturnedMessageTriggerServiceTests.java) | `invalidSourceTimeContractIsRejectedBeforeSideEffects` | Expected 6과 외부 부수 효과 부재 |
 | [ReturnedMessageTriggerServiceTests](../../../../src/test/java/com/ucware/ai_orchestrator/returnedmessage/application/ReturnedMessageTriggerServiceTests.java) | `positiveConnectionTypeIsAcceptedWithoutInterpretingLegacyMeaning` | Expected 7 |
+
+## Assertion Review
+
+| 항목 | 값 |
+|---|---|
+| Status | Ready for Review |
+| Reviewed At | - |
+| Reviewer | - |
+| Reviewed Commit | - |
+| Review Evidence | - |
+| Review Notes | 신규 assertion 리뷰 대기 |
+
+### Assertion Review Checklist
+
+| 검토 항목 | 판정 | 리뷰 메모 |
+|---|---|---|
+| Expected Results와 assertion 매핑 | Pending | - |
+| 반환값, 상태와 사유의 정확성 | Pending | - |
+| 상태 전이와 persistence 부수 효과 | Pending | - |
+| 외부 호출과 부수 효과 부재 | Pending | - |
+| 오류, 경계값과 경쟁 조건 | Pending | - |
+| 회귀 실패 감지 가능성 | Pending | - |
 
 ## Execution Command
 
