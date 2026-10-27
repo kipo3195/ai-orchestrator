@@ -26,8 +26,10 @@ class AiPolicySnapshotTests {
         globalPolicies.put("tenant-1", false);
         featurePolicies.put(featureKey, false);
 
+        // globalPolicies.put("tenant-1", false);하더라도 True - 방어적 복사 (copyOf)
         assertThat(snapshot.isGlobalEnabled("tenant-1")).isTrue();
         assertThat(snapshot.isFeatureEnabled("tenant-1", AiFeature.CONVERSATION_START)).isTrue();
+        // assertThatThrownBy - 실제로 실행하고 발생한 예외를 확인한다. + isInstanceOf를 통해 발생한 예외의 타입을 검증한다. 
         assertThatThrownBy(() -> snapshot.globalPolicies().put("tenant-2", true))
                 .isInstanceOf(UnsupportedOperationException.class);
         assertThatThrownBy(() -> snapshot.featurePolicies().put(featureKey, false))

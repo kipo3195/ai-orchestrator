@@ -25,6 +25,7 @@ class InMemoryAiPolicyStoreTests {
 
     @Test
     void startsWithUninitializedSnapshot() {
+        // 최초 init
         InMemoryAiPolicyStore store = new InMemoryAiPolicyStore();
 
         AiPolicySnapshot snapshot = store.currentSnapshot();

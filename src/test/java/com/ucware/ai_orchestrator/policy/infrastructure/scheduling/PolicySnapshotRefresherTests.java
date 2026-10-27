@@ -39,6 +39,7 @@ class PolicySnapshotRefresherTests {
         refresher.refresh();
 
         AiPolicySnapshot snapshot = store.currentSnapshot();
+        // assertThat - 검증할 값을 지정
         assertThat(snapshot.initialized()).isTrue();
         assertThat(snapshot.loadedAt()).isEqualTo(REFRESHED_AT);
         assertThat(snapshot.isGlobalEnabled("tenant-1")).isTrue();
@@ -87,6 +88,8 @@ class PolicySnapshotRefresherTests {
     @Test
     void keepsUninitializedSnapshotWhenFirstScheduledRefreshFails() {
         PolicySnapshotRepository repository = mock(PolicySnapshotRepository.class);
+
+        // 실제 DB에 문제가 없어도 DB 장애가 발생한 상황을 인위적으로 재현
         when(repository.findAllPolicies()).thenThrow(new IllegalStateException("database unavailable"));
         InMemoryAiPolicyStore store = new InMemoryAiPolicyStore();
         AiPolicySnapshot initialSnapshot = store.currentSnapshot();
@@ -95,6 +98,7 @@ class PolicySnapshotRefresherTests {
 
         assertThatCode(refresher::scheduledRefresh).doesNotThrowAnyException();
 
+        // 초기 snapshot을 유지
         assertThat(store.currentSnapshot()).isSameAs(initialSnapshot);
         assertThat(store.currentSnapshot().initialized()).isFalse();
     }
@@ -112,6 +116,7 @@ class PolicySnapshotRefresherTests {
         refresher.scheduledRefresh();
         AiPolicySnapshot validSnapshot = store.currentSnapshot();
 
+        // :: 자체가 메서드를 실행하는 것은 아니고, assertThatCode()가 전달받은 메서드를 실행하는 것이야.
         assertThatCode(refresher::scheduledRefresh).doesNotThrowAnyException();
 
         assertThat(store.currentSnapshot()).isSameAs(validSnapshot);
@@ -130,11 +135,15 @@ class PolicySnapshotRefresherTests {
         InMemoryAiPolicyStore store = new InMemoryAiPolicyStore();
         PolicySnapshotRefresher refresher = new PolicySnapshotRefresher(
                 repository, store, Clock.fixed(REFRESHED_AT, ZoneOffset.UTC));
+        
+        // 첫 번째: 정상 정책 로딩
         refresher.scheduledRefresh();
         AiPolicySnapshot validSnapshot = store.currentSnapshot();
 
+        // 두 번째: 비정상 정책 로딩 시도, 내부 로직상 IllegalArgumentException("Feature Policy enabled must not be null");
         assertThatCode(refresher::scheduledRefresh).doesNotThrowAnyException();
 
+        // 기존 정상 Snapshot 유지 확인
         assertThat(store.currentSnapshot()).isSameAs(validSnapshot);
     }
 }

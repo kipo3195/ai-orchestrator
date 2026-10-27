@@ -5,7 +5,14 @@
 | Verification | [상위 Verification 문서](../README.md) |
 | Test Level | [Unit / Integration / Workflow / End-to-End / Manual] |
 
-Required 여부, 시나리오 리뷰 상태, 자동화 상태, Assertion 리뷰 상태와 `Last Verification Execution` 기준 실행 결과는 [상위 Verification 문서](../README.md)에서 관리한다. 이 문서의 `Scenario Review`와 `Assertion Review`는 각 최신 리뷰 증적을, `Last Execution`은 해당 TC의 최근 단독 또는 전체 실행을 기록한다. 단독 실행만으로 상위 Verification의 상태를 변경하지 않는다.
+<!--
+상태 관리:
+- Required 여부, 리뷰 상태, 자동화 상태와 전체 실행 결과는 상위 Verification README에서 관리한다.
+- Review에는 Scenario와 Assertion의 최신 리뷰 기록을 남긴다.
+- Execution Evidence는 상위 Verification의 `Last Verification Execution`을 참조한다.
+- 실행 시각, commit, 환경, 명령과 결과는 상위 execution evidence에만 기록하고 TC에 중복 기록하지 않는다.
+- TC 단독 실행은 진단 용도로 사용할 수 있지만 상위 Verification 상태와 공식 실행 결과를 변경하지 않는다.
+-->
 
 ## Verification Purpose
 
@@ -59,70 +66,24 @@ Required 여부, 시나리오 리뷰 상태, 자동화 상태, Assertion 리뷰 
 2. [협력 객체 호출 여부 또는 호출 횟수]
 3. [변경되지 않아야 하는 상태 또는 부작용 부재]
 
-## Scenario Review
+## Review
 
 <!--
 상태: Draft | Ready for Review | In Review | Changes Requested | Approved | Stale
-Verification Purpose, Requirement Traceability, Risk Addressed, 테스트 경계, Given/When/Then,
-Test Data와 Limitations가 상위 Verification의 보장 범위를 충분히 표현하는지 검토한다.
-Approved는 자동화 구현 또는 실행 통과를 의미하지 않는다.
-체크리스트 판정: Pending | Accepted | Changes Requested | N/A
+Scenario와 Assertion의 승인 기준은 Verification 공통 README를 따른다.
+문제가 있으면 보완할 내용을, 적용되지 않는 기준은 `N/A: <기준> - <사유>` 형식으로 Notes에 기록한다.
 -->
 
-| 항목 | 값 |
-|---|---|
-| Status | Draft |
-| Reviewed At | - |
-| Reviewer | - |
-| Reviewed Commit | - |
-| Review Evidence | - |
-| Review Notes | - |
-
-### Scenario Review Checklist
-
-| 검토 항목 | 판정 | 리뷰 메모 |
-|---|---|---|
-| 목적과 요구사항 추적성 | Pending | - |
-| 위험과 테스트 경계 | Pending | - |
-| Given 조건 | Pending | - |
-| When 절차 | Pending | - |
-| Then 기대 결과 | Pending | - |
-| 테스트 데이터와 한계 | Pending | - |
+| 리뷰 | 상태 | Reviewed At | Reviewed Commit | Notes |
+|---|---|---|---|---|
+| Scenario | Draft | - | - | - |
+| Assertion | Draft | - | - | - |
 
 ## Automated Test Mapping
 
 | 테스트 클래스 | 테스트 메서드 | 검증하는 기대 결과 |
 |---|---|---|
 | [TestClass](테스트-코드-경로) | `testMethodName` | [Then 항목 번호 또는 핵심 assertion] |
-
-## Assertion Review
-
-<!--
-상태: Draft | Ready for Review | In Review | Changes Requested | Approved | Stale
-Automated Test Mapping의 실제 테스트 코드가 모든 Expected Results를 충분히 검증하는지 확인한다.
-자동화 상태가 Automated이고 체크리스트가 모두 Accepted 또는 사유가 기록된 N/A일 때만 Approved로 전환한다.
-체크리스트 판정: Pending | Accepted | Changes Requested | N/A
--->
-
-| 항목 | 값 |
-|---|---|
-| Status | Draft |
-| Reviewed At | - |
-| Reviewer | - |
-| Reviewed Commit | - |
-| Review Evidence | - |
-| Review Notes | - |
-
-### Assertion Review Checklist
-
-| 검토 항목 | 판정 | 리뷰 메모 |
-|---|---|---|
-| Expected Results와 assertion 매핑 | Pending | - |
-| 반환값, 상태와 사유의 정확성 | Pending | - |
-| 상태 전이와 persistence 부수 효과 | Pending | - |
-| 외부 호출과 부수 효과 부재 | Pending | - |
-| 오류, 경계값과 경쟁 조건 | Pending | - |
-| 회귀 실패 감지 가능성 | Pending | - |
 
 ## Execution Command
 
@@ -132,21 +93,17 @@ Automated Test Mapping의 실제 테스트 코드가 모든 Expected Results를 
 ./gradlew test --tests 'fully.qualified.TestClass.testMethodName' --rerun-tasks
 ```
 
-## Last Execution
+## Execution Evidence
 
-<!-- 이 TC의 모든 매핑 테스트를 실행한 최신 결과를 기록한다. 실패 또는 차단된 실행도 기록하며, 실행 전에는 '-' 또는 'Not Run'을 유지한다. -->
+<!--
+실행 메타데이터와 결과는 상위 Verification의 Last Verification Execution에 연결된 evidence에서 관리한다.
+TC 문서에는 동일한 실행 정보를 복제하지 않는다.
+-->
 
-| 항목 | 값 |
-|---|---|
-| Executed At | - |
-| Commit | - |
-| Working Tree | - |
-| Environment | - |
-| Command | - |
-| Execution Scope | - |
-| Parent Execution / Evidence | - |
-| Result | Not Run |
-| Passed / Failed / Skipped | - |
+이 TC의 실행 결과는 상위 Verification의 최신 전체 실행 증적에서 관리한다.
+
+- Latest Verification Execution: [상위 Verification 문서](../README.md#last-verification-execution)
+- TC 결과 확인: 연결된 execution evidence에서 `Automated Test Mapping`에 해당하는 테스트 결과를 확인한다.
 
 ## Cleanup / Postconditions
 

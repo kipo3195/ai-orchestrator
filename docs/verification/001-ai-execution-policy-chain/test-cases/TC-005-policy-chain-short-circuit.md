@@ -5,8 +5,6 @@
 | Verification | [AI Execution Policy Chain Verification](../README.md) |
 | Test Level | Unit |
 
-Required 여부, 시나리오 리뷰 상태, 자동화 상태, Assertion 리뷰 상태와 `Last Verification Execution` 기준 실행 결과는 [상위 Verification 문서](../README.md)에서 관리한다. 이 문서의 `Scenario Review`와 `Assertion Review`는 각 최신 리뷰 증적을, `Last Execution`은 해당 TC의 최근 단독 또는 전체 실행을 기록한다. 단독 실행만으로 상위 Verification의 상태를 변경하지 않는다.
-
 ## Verification Purpose
 
 사용자 기반 평가가 Global → Feature → 전체 User Policy 순서를 지키고, 상위 정책 거절 시 User Provider를 호출하지 않으며, User 상태를 구체적인 정책 결정 사유로 변환하는지 검증한다.
@@ -65,27 +63,12 @@ Required 여부, 시나리오 리뷰 상태, 자동화 상태, Assertion 리뷰 
 4. `ENABLED`는 `ALLOWED`, `DISABLED`는 `USER_AI_DISABLED`다.
 5. `NOT_CONFIGURED`는 `USER_POLICY_NOT_CONFIGURED`, `Unavailable`은 `USER_POLICY_UNAVAILABLE`이다.
 
-## Scenario Review
+## Review
 
-| 항목 | 값 |
-|---|---|
-| Status | Ready for Review |
-| Reviewed At | - |
-| Reviewer | - |
-| Reviewed Commit | - |
-| Review Evidence | - |
-| Review Notes | 신규 시나리오 리뷰 대기 |
-
-### Scenario Review Checklist
-
-| 검토 항목 | 판정 | 리뷰 메모 |
-|---|---|---|
-| 목적과 요구사항 추적성 | Pending | - |
-| 위험과 테스트 경계 | Pending | - |
-| Given 조건 | Pending | - |
-| When 절차 | Pending | - |
-| Then 기대 결과 | Pending | - |
-| 테스트 데이터와 한계 | Pending | - |
+| 리뷰 | 상태 | Reviewed At | Reviewed Commit | Notes |
+|---|---|---|---|---|
+| Scenario | Ready for Review | - | - | 신규 시나리오 리뷰 대기 |
+| Assertion | Ready for Review | - | - | 신규 assertion 리뷰 대기 |
 
 ## Automated Test Mapping
 
@@ -95,28 +78,6 @@ Required 여부, 시나리오 리뷰 상태, 자동화 상태, Assertion 리뷰 
 | [AiExecutionPolicyServiceTests](../../../../src/test/java/com/ucware/ai_orchestrator/policy/application/AiExecutionPolicyServiceTests.java) | `rejectsFeatureBeforeResolvingUserPolicy` | Then 2 |
 | [AiExecutionPolicyServiceTests](../../../../src/test/java/com/ucware/ai_orchestrator/policy/application/AiExecutionPolicyServiceTests.java) | `allowsEnabledOverallUserPolicyAfterGlobalAndFeature` | Then 3, 4 |
 | [AiExecutionPolicyServiceTests](../../../../src/test/java/com/ucware/ai_orchestrator/policy/application/AiExecutionPolicyServiceTests.java) | `mapsOverallUserPolicyRejections` | Then 4, 5 |
-
-## Assertion Review
-
-| 항목 | 값 |
-|---|---|
-| Status | Ready for Review |
-| Reviewed At | - |
-| Reviewer | - |
-| Reviewed Commit | - |
-| Review Evidence | - |
-| Review Notes | 신규 assertion 리뷰 대기 |
-
-### Assertion Review Checklist
-
-| 검토 항목 | 판정 | 리뷰 메모 |
-|---|---|---|
-| Expected Results와 assertion 매핑 | Pending | - |
-| 반환값, 상태와 사유의 정확성 | Pending | - |
-| 상태 전이와 persistence 부수 효과 | Pending | - |
-| 외부 호출과 부수 효과 부재 | Pending | - |
-| 오류, 경계값과 경쟁 조건 | Pending | - |
-| 회귀 실패 감지 가능성 | Pending | - |
 
 ## Execution Command
 
@@ -130,19 +91,12 @@ Required 여부, 시나리오 리뷰 상태, 자동화 상태, Assertion 리뷰 
   --rerun-tasks
 ```
 
-## Last Execution
+## Execution Evidence
 
-| 항목 | 값 |
-|---|---|
-| Executed At | 2026-10-14 17:45 KST |
-| Commit | `ac204af` |
-| Working Tree | Clean |
-| Environment | Java 17.0.19, Gradle 9.7.1 |
-| Command | 상위 Verification Tests 명령 |
-| Execution Scope | Verification |
-| Parent Execution / Evidence | [2026-10-14 verification execution](../evidence/2026-10-14-ac204af.md) |
-| Result | Passed |
-| Passed / Failed / Skipped | 5 / 0 / 0 |
+이 TC의 실행 결과는 상위 Verification의 최신 전체 실행 증적에서 관리한다. TC 문서에는 실행 메타데이터를 중복 기록하지 않는다.
+
+- Latest Verification Execution: [상위 Verification 문서](../README.md#last-verification-execution)
+- TC 결과 확인: 연결된 execution evidence에서 `Automated Test Mapping`에 해당하는 테스트 결과를 확인한다.
 
 ## Cleanup / Postconditions
 

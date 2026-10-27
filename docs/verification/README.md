@@ -39,7 +39,7 @@ verification/
 |---|---|
 | 검증별 `README.md` | 검증 대상, 전략과 범위, TC 목록, 현재 검증 상태와 최신 전체 실행 evidence 링크의 단일 원천 |
 | `policy-coverage-matrix.md` | 복잡한 조건 분기에서 요구사항, 기대 결과, 부수 효과, TC와 자동화 테스트를 연결하는 선택적 탐색 인덱스 |
-| `test-cases/` | TC별 검증 목적, 위험, Given(어떤 조건)/When(어떤 동작 발생)/Then(어떤 결과), 시나리오·Assertion 리뷰 증적, 자동화 테스트 매핑, 단독 실행 명령과 `Last Execution`을 기록 |
+| `test-cases/` | TC별 검증 목적, 위험, Given(어떤 조건)/When(어떤 동작 발생)/Then(어떤 결과), 시나리오·Assertion 리뷰 증적, 자동화 테스트 매핑, 단독 실행 명령과 상위 실행 증적 참조를 기록 |
 | `evidence/` | Verification 전체 실행의 환경, 명령, Required TC 범위, 상세 집계와 판정을 실행별로 보관 |
 
 ## 검증 원칙
@@ -54,9 +54,9 @@ AI 실행 정책 Verification은 Global, Feature, 전체 User Policy의 평가 �
 
 ## 상태 관리
 
-검증 상태, TC별 Required 여부, 시나리오 리뷰 상태, 자동화 상태와 Assertion 리뷰 상태는 각 검증의 `README.md`에서 관리한다. 개별 TC의 `Scenario Review`와 `Assertion Review`에는 각 최신 리뷰의 일시, 리뷰어, 대상 commit과 증적을 기록하며 상위 `Test Summary`의 해당 상태와 일치시킨다. Test Summary의 TC별 실행 결과와 검증 상태는 모든 Required TC를 동일 조건에서 함께 실행한 evidence를 `Last Verification Execution`에 연결하고, 그 실행 결과를 기준으로 판정한다.
+검증 상태, TC별 Required 여부, 시나리오 리뷰 상태, 자동화 상태와 Assertion 리뷰 상태는 각 검증의 `README.md`에서 관리한다. 개별 TC의 `Review`에는 Scenario와 Assertion의 최신 리뷰 일시, 대상 commit과 메모를 각각 기록하며 상위 `Test Summary`의 해당 상태와 일치시킨다. Test Summary의 TC별 실행 결과와 검증 상태는 모든 Required TC를 동일 조건에서 함께 실행한 evidence를 `Last Verification Execution`에 연결하고, 그 실행 결과를 기준으로 판정한다.
 
-각 TC 문서의 `Last Execution`은 해당 TC가 가장 최근에 실행된 사실을 기록한다. 단독 실행 결과는 부분 실행 증적이며, 여러 TC의 독립적인 `Last Execution`을 조합해 `Last Verification Execution`으로 간주하거나 검증 상태를 `Verified`로 변경하지 않는다. `Last Verification Execution`에 포함된 TC의 `Last Execution`은 같은 전체 실행과 증적을 참조할 수 있다.
+각 TC 문서의 `Execution Evidence`는 상위 Verification의 `Last Verification Execution`을 참조한다. 실행 시각, commit, working tree, 환경, 명령과 결과는 연결된 execution evidence에만 기록하며 TC 문서에 중복 저장하지 않는다. TC 단독 실행은 진단에 사용할 수 있지만 공식 실행 증적으로 합산하거나 Verification 상태 변경의 근거로 사용하지 않는다.
 
 | 상태 | 의미 |
 |---|---|
@@ -68,7 +68,13 @@ AI 실행 정책 Verification은 Global, Feature, 전체 User Policy의 평가 �
 
 ### 시나리오 리뷰 상태
 
-시나리오 리뷰는 TC의 `Verification Purpose`, 요구사항 추적성, 위험, 테스트 경계, Given/When/Then, 테스트 데이터와 한계가 상위 Verification의 보장 범위를 충분히 표현하는지 확인한다. 자동화 테스트 구현 여부와 실행 성공 여부는 각각 자동화 상태와 실행 결과로 별도 관리한다.
+시나리오 리뷰는 TC가 상위 Verification의 보장 범위를 충분히 표현하는지 다음 기준으로 확인한다. 자동화 테스트 구현 여부와 실행 성공 여부는 각각 자동화 상태와 실행 결과로 별도 관리한다.
+
+- `Verification Purpose`와 요구사항 추적성이 명확한가
+- 다루는 위험과 테스트 경계가 적절한가
+- Given 조건, When 절차와 Then 기대 결과가 구체적이고 서로 일관되는가
+- 테스트 데이터가 대표값 또는 경계값을 포함하고 선택 이유가 타당한가
+- 검증하지 않는 범위와 한계가 명시되어 있는가
 
 | 상태 | 의미 |
 |---|---|
@@ -79,11 +85,18 @@ AI 실행 정책 Verification은 Global, Feature, 전체 User Policy의 평가 �
 | `Approved` | 현재 Verification Basis와 범위에 대해 시나리오가 충분하다고 검토되었다. |
 | `Stale` | 승인 이후 요구사항, 경계 또는 시나리오가 실질적으로 변경되어 재리뷰가 필요하다. |
 
-`Approved`는 테스트가 구현되거나 통과했다는 뜻이 아니다. TC의 `Scenario Review` 체크리스트를 모두 `Accepted` 또는 사유가 기록된 `N/A`로 판정한 뒤에만 `Approved`로 전환한다. 체크리스트의 `Pending`은 미검토, `Accepted`는 충분함, `Changes Requested`는 보완 필요, `N/A`는 사유를 기록한 비적용을 의미한다. `Reviewed Commit`에는 리뷰한 TC 시나리오가 포함된 commit을 기록한다. 리뷰 결과는 TC에 기록하고, 상위 `Test Summary`에는 현재 상태를 요약한다. 오탈자와 서식처럼 시나리오 의미에 영향을 주지 않는 변경은 `Stale` 전환 대상이 아니다.
+`Approved`는 테스트가 구현되거나 통과했다는 뜻이 아니다. 위 기준을 모두 검토하고 필수 보완 사항이 없을 때만 `Approved`로 전환한다. 적용되지 않는 기준은 `N/A: <기준> - <사유>` 형식으로, 발견된 문제는 보완할 내용과 함께 TC의 Scenario `Notes`에 기록한다. `Reviewed Commit`에는 리뷰한 TC 시나리오가 포함된 commit을 기록한다. 리뷰 결과는 TC의 `Review`에 기록하고, 상위 `Test Summary`에는 현재 상태를 요약한다. 오탈자와 서식처럼 시나리오 의미에 영향을 주지 않는 변경은 `Stale` 전환 대상이 아니다.
 
 ### Assertion 리뷰 상태
 
-Assertion 리뷰는 `Automated Test Mapping`에 연결된 실제 테스트 코드가 TC의 모든 Expected Results를 빠짐없이 검증하고, 상태 전이, 저장 결과, 외부 호출과 부수 효과 부재, 오류 및 경계 조건을 충분히 구별하는지 확인한다. 자동화 테스트가 존재하거나 실행에 통과했다는 사실만으로 Assertion 리뷰가 승인되지는 않는다.
+Assertion 리뷰는 `Automated Test Mapping`에 연결된 실제 테스트 코드가 다음 기준을 충족하는지 확인한다. 자동화 테스트가 존재하거나 실행에 통과했다는 사실만으로 Assertion 리뷰가 승인되지는 않는다.
+
+- 모든 Expected Results가 실제 assertion 또는 관찰 가능한 증거와 연결되는가
+- 반환값, 상태와 사유를 정확히 검증하는가
+- 상태 전이와 persistence 결과 등 필요한 부수 효과를 검증하는가
+- 외부 호출과 발생하지 않아야 하는 부수 효과를 검증하는가
+- 오류, 경계값과 경쟁 조건을 필요한 수준으로 구별하는가
+- 요구사항이 회귀하면 테스트가 실패하도록 충분히 구체적인가
 
 | 상태 | 의미 |
 |---|---|
@@ -94,7 +107,9 @@ Assertion 리뷰는 `Automated Test Mapping`에 연결된 실제 테스트 코�
 | `Approved` | 현재 승인된 시나리오의 Expected Results를 assertion이 충분히 검증한다고 확인되었다. |
 | `Stale` | 승인 이후 시나리오, 테스트 매핑 또는 핵심 assertion이 변경되어 재리뷰가 필요하다. |
 
-Assertion 리뷰는 자동화 상태가 `Automated`인 경우에만 `Approved`로 전환한다. `Assertion Review` 체크리스트를 모두 `Accepted` 또는 사유가 기록된 `N/A`로 판정하고, `Reviewed Commit`에는 리뷰한 테스트 코드와 TC 매핑이 포함된 commit을 기록한다. 수동 TC에는 assertion 대신 관찰 기준과 evidence 검토 규칙을 별도로 정의하며, 사유 없는 `N/A`로 승인 조건을 우회하지 않는다.
+Assertion 리뷰는 자동화 상태가 `Automated`이고 위 기준을 모두 검토해 필수 보완 사항이 없을 때만 `Approved`로 전환한다. 적용되지 않는 기준은 `N/A: <기준> - <사유>` 형식으로, 발견된 문제는 보완할 내용과 함께 TC의 Assertion `Notes`에 기록한다. `Reviewed Commit`에는 리뷰한 테스트 코드와 TC 매핑이 포함된 commit을 기록한다. 수동 TC에는 assertion 대신 관찰 기준과 evidence 검토 규칙을 별도로 정의하며, 사유 없이 검토 기준을 생략해 승인 조건을 우회하지 않는다.
+
+개별 TC는 Scenario와 Assertion 리뷰를 하나의 `Review` 표에 별도 행으로 기록한다. 문제가 없고 적용 제외 항목도 없으면 `Notes`는 `-`로 유지할 수 있다. `Changes Requested` 상태에서는 보완할 내용을, 적용되지 않는 기준이 있으면 그 기준과 사유를 `Notes`에 기록한다. 외부 리뷰나 별도 증적이 있으면 `Notes`에서 연결한다.
 
 ### Stale 전환 규칙
 
@@ -121,7 +136,7 @@ Verification을 `Verified`로 판정하려면 다음 조건을 모두 만족해�
 7. 검증하지 않은 경계와 알려진 위험이 명시되어 있다.
 8. 최종 판정은 실제 검증 범위를 넘어서지 않는다.
 
-검증별 `README.md`의 `Last Verification Execution`에 연결된 execution summary를 검증 완료 판정의 기본 실행 증적으로 사용한다. 이 evidence는 해당 Verification의 모든 Required TC를 포함하는 하나의 실행을 기록해야 하며, 개별 TC 실행 결과를 사후에 조합해서 만들지 않는다. 각 TC의 `Last Execution`은 단독 또는 전체 실행에서 해당 TC가 마지막으로 실행된 결과를 기록한다. 로컬 리포트, CI 실행 링크나 별도 로그는 `Evidence`에서 추가로 연결할 수 있다.
+검증별 `README.md`의 `Last Verification Execution`에 연결된 execution summary를 검증 완료 판정의 기본 실행 증적으로 사용한다. 이 evidence는 해당 Verification의 모든 Required TC를 포함하는 하나의 실행을 기록해야 하며, 개별 TC 실행 결과를 사후에 조합해서 만들지 않는다. TC별 통과 여부는 execution evidence에서 `Automated Test Mapping`에 해당하는 테스트 결과로 확인한다. 로컬 리포트, CI 실행 링크나 별도 로그는 `Evidence`에서 추가로 연결할 수 있다.
 
 ## 템플릿
 

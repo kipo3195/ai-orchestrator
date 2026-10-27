@@ -8,7 +8,7 @@
 | Stale Since | - |
 | Stale Reason | - |
 
-이 문서는 해당 Verification의 현재 상태와 TC별 Required 여부, 시나리오 리뷰, 자동화 상태, Assertion 리뷰와 실행 상태의 단일 원천이다. 최신 리뷰의 상세 증적은 각 TC의 `Scenario Review`와 `Assertion Review`에, 최신 실행의 환경, 명령과 상세 집계는 `Last Verification Execution`에 연결된 evidence에 기록한다. 상태 정의와 전환 규칙은 [Verification 상태 관리](../README.md#상태-관리)를 따른다.
+이 문서는 해당 Verification의 현재 상태와 TC별 Required 여부, 시나리오 리뷰, 자동화 상태, Assertion 리뷰와 실행 상태의 단일 원천이다. 최신 리뷰 기록은 각 TC의 `Review`에, 최신 실행의 환경, 명령과 상세 집계는 `Last Verification Execution`에 연결된 evidence에 기록한다. 각 TC의 `Execution Evidence`는 이 문서의 최신 전체 실행을 참조하며 실행 메타데이터를 중복 기록하지 않는다. 상태 정의와 전환 규칙은 [Verification 상태 관리](../README.md#상태-관리)를 따른다.
 
 ## Objective
 

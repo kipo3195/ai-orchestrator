@@ -1,13 +1,13 @@
 # Verification 실행 기록 가이드
 
-테스트를 실제로 실행한 뒤 TC 단독 결과는 `Last Execution`에 기록하고, Verification 전체 실행은 evidence에 기록해 `Last Verification Execution`에 연결하는 방법을 설명한다.
+테스트를 실제로 실행한 뒤 Verification 전체 실행을 evidence에 기록하고 `Last Verification Execution`에 연결하는 방법을 설명한다. TC 문서는 상위 실행 증적을 참조하며 실행 메타데이터를 중복 기록하지 않는다.
 
 ## 기록 단위
 
-- TC `Last Execution`: 해당 TC에 매핑된 모든 테스트의 최신 실행 결과다. 단독 실행은 `TC Only`, 상위 Verification 실행에 포함된 경우에는 `Verification`으로 기록한다.
+- TC `Execution Evidence`: 상위 Verification의 `Last Verification Execution`을 참조한다. TC별 결과는 연결된 evidence에서 매핑 테스트의 결과로 확인한다.
 - `Last Verification Execution`: 해당 Verification의 모든 Required TC를 동일한 소스와 환경에서 함께 실행한 evidence를 연결한다. Verification의 `Test Summary`와 상태는 이 evidence의 결과를 기준으로 판정한다.
 
-여러 TC의 독립적인 실행 결과를 조합해 `Last Verification Execution`으로 기록하지 않는다.
+TC 단독 실행은 진단에 사용할 수 있지만 공식 실행 증적으로 기록하지 않는다. 여러 TC의 독립적인 실행 결과를 조합해 `Last Verification Execution`으로 기록하지 않는다.
 
 ## 1. 실행 전 정보 확인
 
@@ -59,27 +59,20 @@ Skipped = skipped
 
 `Automated Test Mapping`의 모든 테스트가 실행되고 `failures`, `errors`, `skipped`가 모두 0일 때만 `Passed`로 기록한다.
 
-## 4. TC Last Execution 작성
+## 4. TC Execution Evidence 확인
 
-TC 단독 실행 결과는 해당 TC 문서에 기록한다.
+TC 문서는 실행 메타데이터를 직접 보관하지 않고 상위 Verification 문서의 최신 전체 실행을 참조한다.
 
 ```markdown
-## Last Execution
+## Execution Evidence
 
-| 항목 | 값 |
-|---|---|
-| Executed At | 2026-10-13 16:11 KST |
-| Commit | `9980610` |
-| Working Tree | Dirty |
-| Environment | Verification default |
-| Command | 위 TC의 Execution Command |
-| Execution Scope | TC Only |
-| Parent Execution / Evidence | `build/reports/tests/test/index.html` |
-| Result | Passed |
-| Passed / Failed / Skipped | 3 / 0 / 0 |
+이 TC의 실행 결과는 상위 Verification의 최신 전체 실행 증적에서 관리한다.
+
+- Latest Verification Execution: [상위 Verification 문서](../README.md#last-verification-execution)
+- TC 결과 확인: 연결된 execution evidence에서 `Automated Test Mapping`에 해당하는 테스트 결과를 확인한다.
 ```
 
-`Executed At`에는 시간대를 명시한다. 테스트 실패는 `Failed`, 환경 문제로 완료하지 못한 실행은 `Blocked`, 실행 전에는 `Not Run`으로 기록한다.
+TC 단독 실행 결과가 후속 분석에 필요하면 임시 로컬 리포트나 별도 진단 기록으로 보관할 수 있다. 다만 TC 문서의 공식 실행 결과나 상위 Verification 상태에는 반영하지 않는다.
 
 ## 5. Verification 전체 실행
 
@@ -110,7 +103,7 @@ Verification README의 `Verification Tests` 명령을 실행한다. 이 명령�
 - Execution Summary: [YYYY-MM-DD verification execution](evidence/YYYY-MM-DD-<commit>.md)
 ```
 
-같은 실행에 포함된 각 TC의 `Last Execution`도 `Execution Scope: Verification`으로 갱신하고 상위 `Last Verification Execution`을 참조한다. Verification의 `Test Summary`와 상태는 연결된 evidence의 전체 실행 결과를 기준으로 갱신한다.
+각 TC의 `Execution Evidence` 링크는 상위 Verification 문서를 안정적으로 참조하므로 실행할 때마다 갱신하지 않는다. Verification의 `Test Summary`와 상태는 연결된 evidence의 전체 실행 결과를 기준으로 갱신한다.
 
 전체 실행이 통과했더라도 모든 Required TC의 시나리오 리뷰와 Assertion 리뷰 상태가 모두 `Approved`가 아니면 Verification을 `Verified`로 변경하지 않는다.
 

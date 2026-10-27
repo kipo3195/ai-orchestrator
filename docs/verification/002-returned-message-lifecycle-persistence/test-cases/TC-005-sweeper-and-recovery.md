@@ -5,8 +5,6 @@
 | Verification | [Returned Message Lifecycle Persistence Verification](../README.md) |
 | Test Level | Integration / Concurrency |
 
-Required 여부, 시나리오 리뷰 상태, 자동화 상태, Assertion 리뷰 상태와 `Last Verification Execution` 기준 실행 결과는 [상위 Verification 문서](../README.md)에서 관리한다. 이 문서의 `Scenario Review`와 `Assertion Review`는 각 최신 리뷰 증적을, `Last Execution`은 해당 TC의 최근 단독 또는 전체 실행을 기록한다. 단독 실행만으로 상위 Verification의 상태를 변경하지 않는다.
-
 ## Verification Purpose
 
 확인 대기와 다른 non-terminal lifecycle이 process 종료 후에도 유지되고, 여러 instance의 sweeper 또는 recovery worker가 DB 조건과 유한한 claim을 사용해 중복 상태 전이나 영구 점유 없이 복구하는지 검증한다.
@@ -75,27 +73,12 @@ Required 여부, 시나리오 리뷰 상태, 자동화 상태, Assertion 리뷰 
 7. lease가 만료되면 다른 worker가 conditional claim으로 인계할 수 있다.
 8. 복구는 기존 selection, confirmation, execution 또는 delivery correlation을 유지하며 새 lifecycle이나 correlation을 만들지 않는다.
 
-## Scenario Review
+## Review
 
-| 항목 | 값 |
-|---|---|
-| Status | Ready for Review |
-| Reviewed At | - |
-| Reviewer | - |
-| Reviewed Commit | - |
-| Review Evidence | - |
-| Review Notes | 신규 시나리오 리뷰 대기 |
-
-### Scenario Review Checklist
-
-| 검토 항목 | 판정 | 리뷰 메모 |
-|---|---|---|
-| 목적과 요구사항 추적성 | Pending | - |
-| 위험과 테스트 경계 | Pending | - |
-| Given 조건 | Pending | - |
-| When 절차 | Pending | - |
-| Then 기대 결과 | Pending | - |
-| 테스트 데이터와 한계 | Pending | - |
+| 리뷰 | 상태 | Reviewed At | Reviewed Commit | Notes |
+|---|---|---|---|---|
+| Scenario | Ready for Review | - | - | 신규 시나리오 리뷰 대기 |
+| Assertion | Draft | - | - | 자동화 구현과 매핑 완료 후 assertion 리뷰 필요 |
 
 ## Automated Test Mapping
 
@@ -103,28 +86,6 @@ Required 여부, 시나리오 리뷰 상태, 자동화 상태, Assertion 리뷰 
 |---|---|---|
 | TBD | expiration batch and concurrent sweeper tests | Then 1~4 |
 | TBD | restart discovery and recovery claim tests | Then 5~8 |
-
-## Assertion Review
-
-| 항목 | 값 |
-|---|---|
-| Status | Draft |
-| Reviewed At | - |
-| Reviewer | - |
-| Reviewed Commit | - |
-| Review Evidence | - |
-| Review Notes | 자동화 구현과 매핑 완료 후 assertion 리뷰 필요 |
-
-### Assertion Review Checklist
-
-| 검토 항목 | 판정 | 리뷰 메모 |
-|---|---|---|
-| Expected Results와 assertion 매핑 | Pending | - |
-| 반환값, 상태와 사유의 정확성 | Pending | - |
-| 상태 전이와 persistence 부수 효과 | Pending | - |
-| 외부 호출과 부수 효과 부재 | Pending | - |
-| 오류, 경계값과 경쟁 조건 | Pending | - |
-| 회귀 실패 감지 가능성 | Pending | - |
 
 ## Execution Command
 
@@ -134,19 +95,12 @@ Required 여부, 시나리오 리뷰 상태, 자동화 상태, Assertion 리뷰 
 ./gradlew test --tests '*returnedmessage*Recovery*' --tests '*returnedmessage*Expiration*' --rerun-tasks
 ```
 
-## Last Execution
+## Execution Evidence
 
-| 항목 | 값 |
-|---|---|
-| Executed At | - |
-| Commit | - |
-| Working Tree | - |
-| Environment | - |
-| Command | - |
-| Execution Scope | - |
-| Parent Execution / Evidence | - |
-| Result | Not Run |
-| Passed / Failed / Skipped | - |
+이 TC의 실행 결과는 상위 Verification의 최신 전체 실행 증적에서 관리한다. TC 문서에는 실행 메타데이터를 중복 기록하지 않는다.
+
+- Latest Verification Execution: [상위 Verification 문서](../README.md#last-verification-execution)
+- TC 결과 확인: 연결된 execution evidence에서 `Automated Test Mapping`에 해당하는 테스트 결과를 확인한다.
 
 ## Cleanup / Postconditions
 

@@ -8,7 +8,7 @@
 | Stale Since | 2026-10-22 |
 | Stale Reason | 시나리오·Assertion 리뷰 완료 기준 도입에 따라 모든 Required TC의 신규 리뷰가 필요하다. |
 
-이 문서는 해당 Verification의 현재 상태와 TC별 Required 여부, 시나리오 리뷰, 자동화 상태, Assertion 리뷰와 실행 상태의 단일 원천이다. 최신 리뷰의 상세 증적은 각 TC의 `Scenario Review`와 `Assertion Review`에, 최신 실행의 환경, 명령과 상세 집계는 `Last Verification Execution`에 연결된 evidence에 기록한다. 상태 정의와 전환 규칙은 [Verification 상태 관리](../README.md#상태-관리)를 따른다.
+이 문서는 해당 Verification의 현재 상태와 TC별 Required 여부, 시나리오 리뷰, 자동화 상태, Assertion 리뷰와 실행 상태의 단일 원천이다. 최신 리뷰 기록은 각 TC의 `Review`에, 최신 실행의 환경, 명령과 상세 집계는 `Last Verification Execution`에 연결된 evidence에 기록한다. 각 TC의 `Execution Evidence`는 이 문서의 최신 전체 실행을 참조하며 실행 메타데이터를 중복 기록하지 않는다. 상태 정의와 전환 규칙은 [Verification 상태 관리](../README.md#상태-관리)를 따른다.
 
 ## Objective
 
@@ -62,7 +62,7 @@
 
 ## Test Strategy
 
-Domain과 Application 단위 테스트로 snapshot 불변성, 정책 결정 행렬, short-circuit와 User cache-aside 상태 변환을 검증한다. JDBC slice 테스트는 H2 schema와 row mapping을 실제로 사용하고, Redis adapter는 `StringRedisTemplate`을 Mock으로 두어 key/value/TTL 계약에 집중한다. Conversation Start는 scheduler가 받은 Runnable을 직접 실행하고 AI port를 Mock으로 관찰하여 시간 대기 없이 정책 거절과 실제 호출 차단을 검증한다. 동시성 테스트는 `CountDownLatch`로 reader와 writer의 시작을 맞추고 반복 교체 중 관찰되는 snapshot instance를 확인한다. 실제 운영 DB, Redis server, scheduler 시간 경과와 HTTP 통신은 후속 통합 경계로 남긴다.
+Domain과 Application 단위 테스트로 snapshot 불변성, 정책 결정 행렬, short-circuit와 User cache-aside 상태 변환을 검증한다. JDBC slice 테스트는 H2 schema와 row mapping을 실제로 사용하고, Redis adapter는 `StringRedisTemplate`을 Mock으로 두어 key/value/TTL 계약에 집중한다. 정책 평가 결과가 실제 AI 실행 경계에 적용되는지는 Conversation Start를 대표 시나리오로 검증한다. 이 테스트에서는 scheduler에 전달된 Runnable을 직접 실행하고 AI port를 Mock으로 관찰하여, 정책 거절에 따른 AI 호출 차단을 확인한다. 동시성 테스트는 `CountDownLatch`로 reader와 writer의 시작을 맞추고 반복 교체 중 관찰되는 snapshot instance를 확인한다. 실제 운영 DB, Redis server, scheduler 시간 경과와 HTTP 통신은 후속 통합 경계로 남긴다.
 
 ## Completion Criteria
 

@@ -4,7 +4,7 @@
 
 이 문서는 AI 실행 정책의 요구사항, 결정 결과, 부수 효과, Test Case와 자동화 테스트 사이의 연결을 한 화면에서 탐색하기 위한 요약 인덱스다.
 
-Verification 상태와 TC별 실행 결과의 단일 원천은 [AI Execution Policy Chain Verification](README.md)이다. 상세한 Given/When/Then, 테스트 경계와 실행 기록은 연결된 TC 문서에서 관리한다. 이 Matrix는 그 내용을 대체하거나 독립적인 실행 결과를 갖지 않는다.
+Verification 상태와 TC별 실행 결과의 단일 원천은 [AI Execution Policy Chain Verification](README.md)과 연결된 execution evidence다. 상세한 Given/When/Then, 테스트 경계와 자동화 테스트 매핑은 연결된 TC 문서에서 관리한다. 이 Matrix는 그 내용을 대체하거나 독립적인 실행 결과를 갖지 않는다.
 
 ## Evaluation Coverage
 

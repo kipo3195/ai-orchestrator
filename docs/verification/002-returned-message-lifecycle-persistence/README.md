@@ -8,7 +8,7 @@
 | Stale Since | - |
 | Stale Reason | - |
 
-이 문서는 해당 Verification의 현재 상태와 TC별 Required 여부, 시나리오 리뷰, 자동화 상태, Assertion 리뷰와 실행 상태의 단일 원천이다. 최신 리뷰의 상세 증적은 각 TC의 `Scenario Review`와 `Assertion Review`에, 최신 실행의 환경, 명령과 상세 집계는 `Last Verification Execution`에 연결된 evidence에 기록한다. 상태 정의와 전환 규칙은 [Verification 상태 관리](../README.md#상태-관리)를 따른다.
+이 문서는 해당 Verification의 현재 상태와 TC별 Required 여부, 시나리오 리뷰, 자동화 상태, Assertion 리뷰와 실행 상태의 단일 원천이다. 최신 리뷰 기록은 각 TC의 `Review`에, 최신 실행의 환경, 명령과 상세 집계는 `Last Verification Execution`에 연결된 evidence에 기록한다. 각 TC의 `Execution Evidence`는 이 문서의 최신 전체 실행을 참조하며 실행 메타데이터를 중복 기록하지 않는다. 상태 정의와 전환 규칙은 [Verification 상태 관리](../README.md#상태-관리)를 따른다.
 
 현재 production code와 일부 자동화 테스트는 구현되어 있다. 다만 모든 Required TC가 신규 시나리오 리뷰 대기 상태이고, 자동화된 TC의 Assertion 리뷰와 Required TC 전체의 테스트 매핑 및 동일 조건 실행 evidence도 아직 완료되지 않았으므로 구현 존재와 Verification 완료를 구분해 상태를 `In Progress`로 유지한다.
 
@@ -56,7 +56,7 @@ Returned Message Topics 후보만 durable lifecycle로 저장되고, REST retry�
 
 동시성 테스트는 독립 application instance를 나타내는 두 개 이상의 실행 주체가 같은 DB를 사용하도록 구성하고 barrier 또는 latch로 insert/update 시작점을 맞춘다. 실제 시간이 흐르기를 기다리지 않고 과거·미래 만료 시각과 DB 시각 경계 fixture를 사용한다. 외부 port를 호출할 때 Spring transaction 활성 여부를 관찰하여 외부 I/O와 local DB transaction이 분리되었는지 확인한다.
 
-구현된 범위는 각 TC의 `Automated Test Mapping`에 실제 production class와 테스트 메서드를 연결한다. 아직 매핑되지 않았거나 assertion이 요구사항 일부만 확인하는 항목은 `Planned` 또는 `Partial`로 유지한다. 자동화 상태가 `Automated`가 된 TC는 실제 assertion의 충분성을 `Assertion Review`에서 별도로 검토하고, 설계와 구현의 차이는 `Known Risks and Gaps`에 기록한다.
+구현된 범위는 각 TC의 `Automated Test Mapping`에 실제 production class와 테스트 메서드를 연결한다. 아직 매핑되지 않았거나 assertion이 요구사항 일부만 확인하는 항목은 `Planned` 또는 `Partial`로 유지한다. 자동화 상태가 `Automated`가 된 TC는 실제 assertion의 충분성을 `Review`의 Assertion 행에서 별도로 검토하고, 설계와 구현의 차이는 `Known Risks and Gaps`에 기록한다.
 
 ## Completion Criteria
 
@@ -127,7 +127,7 @@ Returned Message Topics 후보만 durable lifecycle로 저장되고, REST retry�
 
 - Execution Summary: -
 
-Required TC 전체를 동일한 clean commit과 환경에서 실행한 evidence가 아직 없다. 개별 TC 실행은 해당 TC의 `Last Execution`에만 기록하며 상위 Verification 실행 결과로 합산하지 않는다.
+Required TC 전체를 동일한 clean commit과 환경에서 실행한 evidence가 아직 없다. TC 단독 실행은 진단에 사용할 수 있지만 상위 Verification 실행 결과로 합산하거나 공식 실행 증적으로 기록하지 않는다.
 
 ## Evidence
 

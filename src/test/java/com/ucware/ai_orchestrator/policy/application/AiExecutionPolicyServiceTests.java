@@ -35,6 +35,8 @@ class AiExecutionPolicyServiceTests {
 
         assertThat(decision.allowed()).isFalse();
         assertThat(decision.reason()).isEqualTo(AiExecutionPolicyReason.GLOBAL_POLICY_UNAVAILABLE);
+      
+        // Mock 객체의 메서드가 단 한 번도 호출되지 않았는지 확인하는 역할
         verifyNoInteractions(userProvider);
     }
 

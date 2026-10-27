@@ -5,8 +5,6 @@
 | Verification | [Returned Message Lifecycle Persistence Verification](../README.md) |
 | Test Level | Unit / Workflow |
 
-Required 여부, 시나리오 리뷰 상태, 자동화 상태, Assertion 리뷰 상태와 `Last Verification Execution` 기준 실행 결과는 [상위 Verification 문서](../README.md)에서 관리한다. 이 문서의 `Scenario Review`와 `Assertion Review`는 각 최신 리뷰 증적을, `Last Execution`은 해당 TC의 최근 단독 또는 전체 실행을 기록한다. 단독 실행만으로 상위 Verification의 상태를 변경하지 않는다.
-
 ## Verification Purpose
 
 AI 실행 후보가 될 수 있는 `USER_RETURNED` 요청만 lifecycle 생성을 시도하고, 잘못된 계약과 정책상 비대상 요청은 DB write와 외부 작업 없이 종료되는지 검증한다. Legacy `connectionType`의 적용 대상 판정은 Messenger Client Ingress의 책임이며, AI Orchestrator는 이를 opaque routing constraint로 취급한다.
@@ -71,27 +69,12 @@ AI 실행 후보가 될 수 있는 `USER_RETURNED` 요청만 lifecycle 생성을
 6. lifecycle 생성 권한을 얻기 전에는 Message Query, confirmation delivery와 AI 실행을 호출하지 않는다.
 7. application instance의 시각 차이가 Trigger expiration 결과를 바꾸지 않는다.
 
-## Scenario Review
+## Review
 
-| 항목 | 값 |
-|---|---|
-| Status | Ready for Review |
-| Reviewed At | - |
-| Reviewer | - |
-| Reviewed Commit | - |
-| Review Evidence | - |
-| Review Notes | 신규 시나리오 리뷰 대기 |
-
-### Scenario Review Checklist
-
-| 검토 항목 | 판정 | 리뷰 메모 |
-|---|---|---|
-| 목적과 요구사항 추적성 | Pending | - |
-| 위험과 테스트 경계 | Pending | - |
-| Given 조건 | Pending | - |
-| When 절차 | Pending | - |
-| Then 기대 결과 | Pending | - |
-| 테스트 데이터와 한계 | Pending | - |
+| 리뷰 | 상태 | Reviewed At | Reviewed Commit | Notes |
+|---|---|---|---|---|
+| Scenario | Ready for Review | - | - | 신규 시나리오 리뷰 대기 |
+| Assertion | Draft | - | - | 자동화 구현과 매핑 완료 후 assertion 리뷰 필요 |
 
 ## Automated Test Mapping
 
@@ -103,47 +86,18 @@ AI 실행 후보가 될 수 있는 `USER_RETURNED` 요청만 lifecycle 생성을
 | `ReturnedMessageTriggerServiceTests` | `unavailablePolicyIsReturnedAsRetryableFailureBeforePersistence` | Then 5, 6 |
 | TBD | DB 시각 기반 Trigger expiration test | Then 7 |
 
-## Assertion Review
-
-| 항목 | 값 |
-|---|---|
-| Status | Draft |
-| Reviewed At | - |
-| Reviewer | - |
-| Reviewed Commit | - |
-| Review Evidence | - |
-| Review Notes | 자동화 구현과 매핑 완료 후 assertion 리뷰 필요 |
-
-### Assertion Review Checklist
-
-| 검토 항목 | 판정 | 리뷰 메모 |
-|---|---|---|
-| Expected Results와 assertion 매핑 | Pending | - |
-| 반환값, 상태와 사유의 정확성 | Pending | - |
-| 상태 전이와 persistence 부수 효과 | Pending | - |
-| 외부 호출과 부수 효과 부재 | Pending | - |
-| 오류, 경계값과 경쟁 조건 | Pending | - |
-| 회귀 실패 감지 가능성 | Pending | - |
-
 ## Execution Command
 
 ```sh
 ./gradlew test --tests 'com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessageTriggerServiceTests'
 ```
 
-## Last Execution
+## Execution Evidence
 
-| 항목 | 값 |
-|---|---|
-| Executed At | 2026-10-20 10:48 KST |
-| Commit | `d8e9321` |
-| Working Tree | Modified |
-| Environment | Local Gradle / Java 17 |
-| Command | `./gradlew test --tests 'com.ucware.ai_orchestrator.returnedmessage.*'` |
-| Execution Scope | Returned Message 관련 테스트 전체 |
-| Parent Execution / Evidence | `build/test-results/test` |
-| Result | Partial — 실행된 테스트는 통과했으며 Then 7 자동화는 TBD |
-| Passed / Failed / Skipped | 24 / 0 / 0 |
+이 TC의 실행 결과는 상위 Verification의 최신 전체 실행 증적에서 관리한다. TC 문서에는 실행 메타데이터를 중복 기록하지 않는다.
+
+- Latest Verification Execution: [상위 Verification 문서](../README.md#last-verification-execution)
+- TC 결과 확인: 연결된 execution evidence에서 `Automated Test Mapping`에 해당하는 테스트 결과를 확인한다.
 
 ## Cleanup / Postconditions
 
