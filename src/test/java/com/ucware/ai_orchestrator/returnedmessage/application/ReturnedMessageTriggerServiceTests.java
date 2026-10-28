@@ -3,6 +3,7 @@ package com.ucware.ai_orchestrator.returnedmessage.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -20,10 +21,8 @@ import org.junit.jupiter.api.Test;
 import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
 import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.LifecycleCreationResult;
-import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageConfirmationSender;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageQuery;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository;
-import com.ucware.ai_orchestrator.returnedmessage.domain.ConfirmationDeliveryStatus;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageLifecycle;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageRequest;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageStatus;
@@ -35,7 +34,6 @@ class ReturnedMessageTriggerServiceTests {
 
     private ReturnedMessageRepository repository;
     private ReturnedMessageQuery messageQuery;
-    private ReturnedMessageConfirmationSender confirmationSender;
     private ReturnedMessageAccessEvaluator accessEvaluator;
     private ReturnedMessageTriggerService service;
 
@@ -43,12 +41,10 @@ class ReturnedMessageTriggerServiceTests {
     void setUp() {
         repository = mock(ReturnedMessageRepository.class);
         messageQuery = mock(ReturnedMessageQuery.class);
-        confirmationSender = mock(ReturnedMessageConfirmationSender.class);
         accessEvaluator = mock(ReturnedMessageAccessEvaluator.class);
         service = new ReturnedMessageTriggerService(
                 repository,
                 messageQuery,
-                confirmationSender,
                 accessEvaluator,
                 new ReturnedMessageProperties(
                         true,
@@ -76,7 +72,7 @@ class ReturnedMessageTriggerServiceTests {
 
         assertThat(result.outcome()).isEqualTo(ReturnedMessageOperationResult.Outcome.EXISTING);
         verify(repository).create(request);
-        verifyNoInteractions(messageQuery, confirmationSender);
+        verifyNoInteractions(messageQuery);
     }
 
     @Test
@@ -87,7 +83,7 @@ class ReturnedMessageTriggerServiceTests {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service.handle(request(-1)))
                 .isInstanceOf(IllegalArgumentException.class);
-        verifyNoInteractions(repository, messageQuery, confirmationSender, accessEvaluator);
+        verifyNoInteractions(repository, messageQuery, accessEvaluator);
     }
 
     @Test
@@ -98,7 +94,7 @@ class ReturnedMessageTriggerServiceTests {
         assertThatThrownBy(() -> service.handle(request(
                 1, NOW.minusSeconds(60), NOW, NOW.minusSeconds(1))))
                 .isInstanceOf(IllegalArgumentException.class);
-        verifyNoInteractions(repository, messageQuery, confirmationSender, accessEvaluator);
+        verifyNoInteractions(repository, messageQuery, accessEvaluator);
     }
 
     @Test
@@ -113,11 +109,11 @@ class ReturnedMessageTriggerServiceTests {
         ReturnedMessageOperationResult result = service.handle(request);
 
         assertThat(result.outcome()).isEqualTo(ReturnedMessageOperationResult.Outcome.EXISTING);
-        verifyNoInteractions(messageQuery, confirmationSender);
+        verifyNoInteractions(messageQuery);
     }
 
     @Test
-    void noUnreadMessagesTransitionsWithoutSendingConfirmation() {
+    void noUnreadMessagesTransitionsWithoutCreatingConfirmation() {
         ReturnedMessageRequest request = request(1);
         ReturnedMessageLifecycle detected = lifecycle(ReturnedMessageStatus.DETECTED, null, null);
         ReturnedMessageLifecycle skipped = lifecycle(
@@ -135,11 +131,12 @@ class ReturnedMessageTriggerServiceTests {
         ReturnedMessageOperationResult result = service.handle(request);
 
         assertThat(result.lifecycle().status()).isEqualTo(ReturnedMessageStatus.SKIPPED_NO_MESSAGES);
-        verify(confirmationSender, never()).send(any());
+        verify(repository, never()).awaitConfirmation(
+                any(), any(), any(), anyInt(), any(), any(), any(), any());
     }
 
     @Test
-    void selectionIsPersistedBeforeConfirmationIsSent() {
+    void selectionCreatesConfirmationStateWithoutOutboundPrompt() {
         ReturnedMessageRequest request = request(1);
         ReturnedMessageLifecycle detected = lifecycle(ReturnedMessageStatus.DETECTED, null, null);
         ReturnedMessageLifecycle awaiting = lifecycle(
@@ -161,9 +158,9 @@ class ReturnedMessageTriggerServiceTests {
         ReturnedMessageOperationResult result = service.handle(request);
 
         assertThat(result.lifecycle().status()).isEqualTo(ReturnedMessageStatus.AWAITING_CONFIRMATION);
-        verify(confirmationSender).send(any());
-        verify(repository).markConfirmationSent(
-                "tenant-1", "request-1", "confirmation-1");
+        verify(repository).awaitConfirmation(
+                eq("tenant-1"), eq("request-1"), eq("selection-1"), eq(3),
+                eq(NOW), eq(NOW.plusSeconds(600)), any(), eq(Duration.ofMinutes(2)));
     }
 
     @Test
@@ -177,7 +174,7 @@ class ReturnedMessageTriggerServiceTests {
                 .isInstanceOf(ReturnedMessagePolicyUnavailableException.class);
 
         verify(repository, never()).create(any());
-        verifyNoInteractions(messageQuery, confirmationSender);
+        verifyNoInteractions(messageQuery);
     }
 
     @Test
@@ -194,7 +191,7 @@ class ReturnedMessageTriggerServiceTests {
         ReturnedMessageOperationResult result = service.resumeDetection(detected);
 
         assertThat(result.lifecycle().status()).isEqualTo(ReturnedMessageStatus.EXPIRED);
-        verifyNoInteractions(messageQuery, confirmationSender);
+        verifyNoInteractions(messageQuery);
     }
 
     private ReturnedMessageRequest request(Integer connectionType) {
@@ -255,7 +252,6 @@ class ReturnedMessageTriggerServiceTests {
                 selectionRef == null ? null : NOW,
                 selectionRef == null ? null : NOW.plusSeconds(600),
                 confirmationId,
-                confirmationId == null ? null : ConfirmationDeliveryStatus.PENDING,
                 confirmationId == null ? null : NOW.plusSeconds(120),
                 null,
                 null,

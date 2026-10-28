@@ -48,7 +48,7 @@ returnedmessage/
 │       ├── ReturnedMessageRepository
 │       ├── ReturnedMessageSelectionRepository
 │       ├── ReturnedMessageQuery
-│       ├── ReturnedMessageConfirmationSender
+│       ├── ReturnedMessageAsyncTaskExecutor
 │       ├── AiExecutionGateway
 │       └── ReturnedMessageResultSender
 ├── domain
@@ -185,7 +185,7 @@ Terminal 상태에서는 다른 상태로 전이하지 않는다. Delivery를 �
 
 Lifecycle 생성에 성공한 처리자는 tenant, user와 absence period 범위로 Message owner에 unread 메시지를 조회한다. Message Query는 읽기 전용이며 AI Orchestrator는 Messenger 데이터의 소유권을 가져오지 않는다.
 
-현재 WebSocket Service adapter는 `MSG_UNREAD`의 첫 페이지를 `reqcount=30`, `reqpage=1`로 조회하고 결과의 `data[].msg_key`를 선택 항목으로 사용한다. 응답에 전체 건수 필드가 없으므로 `unreadCount`는 이 실행에서 선택된 항목 수이며 최대 30이다. AI Orchestrator는 UUID `messageSelectionRef`를 생성하고, 선택 메타데이터와 항목을 각각 `returned_message_selection`, `returned_message_selection_item`에 저장한다. 선택 항목은 source system, item type, source item key와 원래 조회 순서를 보관하며 메시지 본문은 저장하지 않는다.
+현재 WebSocket Service adapter는 `MSG_UNREAD`의 첫 페이지를 `reqcount=30`, `reqpage=1`로 조회하고 결과의 `data[].msg_key`와 `data[].msg_subject`를 선택 항목으로 사용한다. 응답에 전체 건수 필드가 없으므로 `unreadCount`는 이 실행에서 선택된 항목 수이며 최대 30이다. AI Orchestrator는 UUID `messageSelectionRef`를 생성하고, 선택 메타데이터와 항목을 각각 `returned_message_selection`, `returned_message_selection_item`에 저장한다. 선택 항목은 source system, item type, source item key, subject와 원래 조회 순서를 보관하며 메시지 본문은 저장하지 않는다.
 
 ```text
 messageSelectionRef 1 ── N source item key
@@ -194,14 +194,10 @@ messageSelectionRef 1 ── N source item key
 동일 lifecycle request에 이미 유효한 선택이 저장되어 있으면 복구 시 새 UUID를 만들지 않고 기존 선택을 재사용한다. `selection-ttl`이 지난 선택은 새 confirmation에 사용할 수 없다.
 
 - 대상 메시지가 없으면 `DETECTED → SKIPPED_NO_MESSAGES`로 전이한다.
-- 대상 메시지가 있으면 confirmation correlation, confirmation delivery 상태 `PENDING`과 DB 시각 기준 `confirmationExpiresAt`을 저장하면서 `DETECTED → AWAITING_CONFIRMATION`으로 전이한다.
+- 대상 메시지가 있으면 confirmation correlation과 DB 시각 기준 `confirmationExpiresAt`을 저장하면서 `DETECTED → AWAITING_CONFIRMATION`으로 전이한다.
 - 조회가 복구 불가능하게 실패하면 `DETECTED → FAILED`로 전이하고 `failureStage=DETECTION`을 기록한다.
 
-Confirmation 전송에는 lifecycle request ID와 confirmation correlation을 포함한다. 성공하면 confirmation delivery 상태를 `SENT`로 변경한다. `AWAITING_CONFIRMATION`이지만 delivery 상태가 `PENDING`인 row는 만료 전까지 전송 복구 대상이다.
-
-Realtime Service가 idempotency key를 지원하면 confirmation correlation을 사용한다. 지원하지 않는 경우 전송 성공 직후 process가 종료되면 복구 과정에서 사용자에게 중복 prompt가 전달될 수 있으며, 이는 알려진 delivery 한계로 기록한다. 중복 prompt가 전달되어도 응답 상태 전이는 DB에서 한 번만 성공해야 한다.
-
-외부 Message Query와 confirmation 전송 중에는 DB transaction을 유지하지 않는다.
+복귀 팝업은 Client가 자체 생성하므로 AI Orchestrator는 confirmation prompt를 outbound로 전송하지 않는다. `userReturned` 처리는 확인에 필요한 correlation과 만료 시각만 저장한다. 외부 Message Query 중에는 DB transaction을 유지하지 않는다.
 
 ## Confirmation Handling
 
@@ -231,14 +227,15 @@ YES는 다음 순서로 처리한다.
 → messageSelectionRef와 lifecycle owner로 유효한 선택 및 source item key 조회
 → stable executionId 생성
 → AWAITING_CONFIRMATION에서 PROCESSING으로 conditional update
-→ 전이 성공 시에만 선택 항목을 포함한 Omni AI start command 수행
+→ 전이 성공 시에만 bounded execution pool에 Omni AI 작업 등록
+→ Confirmation API는 PROCESSING snapshot과 HTTP 202 Accepted 반환
 ```
 
 YES 시점에는 `MSG_UNREAD`를 다시 실행하지 않는다. 최초 복귀 처리에서 확정한 source item key 집합을 사용하여 사용자가 확인한 대상과 AI 실행 대상이 달라지지 않게 한다. Client가 보낸 `messageSelectionRef`는 lifecycle에 저장된 값과 일치하는지 먼저 검증하고, selection 조회도 request, tenant, user와 absence period를 모두 조건으로 제한한다.
 
 Policy 또는 Permission이 거절되면 아직 만료되지 않은 `AWAITING_CONFIRMATION` row를 `BLOCKED_BY_POLICY`로 전이하고 AI를 호출하지 않는다. 재평가 중 NO 또는 expiration이 먼저 상태를 변경하면 YES의 conditional update는 `0`건이 되며 AI 실행을 시작하지 않는다.
 
-`PROCESSING` 전이에는 `executionId`를 함께 저장한다. 이후 dispatch timeout이나 process 종료가 발생해도 새로운 ID를 만들지 않고 Decision 004에 따라 같은 ID로 reconciliation한다.
+`PROCESSING` 전이에는 `executionId`를 함께 저장한다. Execution pool의 queue가 가득 차 작업 등록이 거절되거나 process가 종료되어도 상태를 실패로 바꾸지 않는다. 복구 worker는 저장된 동일 `executionId`와 selection으로 작업을 다시 수행한다.
 
 ## Confirmation Expiration
 
@@ -272,7 +269,7 @@ confirmation_expires_at <= DB current time
 | Common execution result | Returned Message transition |
 | --- | --- |
 | accepted / running / unknown | `PROCESSING` 유지 |
-| succeeded | 결과 correlation 저장 후 `DELIVERY_PENDING` |
+| succeeded | Topic 결과 snapshot과 delivery correlation 저장 후 `DELIVERY_PENDING` |
 | failed | `FAILED`, `failureStage=AI_EXECUTION` |
 | cancelled | `CANCELLED` |
 
@@ -280,13 +277,13 @@ Omni AI Server의 세부 workflow state를 Returned Message lifecycle에 복제�
 
 ## Result Delivery
 
-`DELIVERY_PENDING`은 AI 실행이 이미 성공했다는 뜻이다. Realtime delivery에는 lifecycle request ID, `executionId`와 안정적인 delivery correlation을 사용한다.
+`DELIVERY_PENDING`은 AI 실행이 이미 성공했다는 뜻이다. AI Orchestrator는 Topic 결과를 `result_payload` JSON snapshot으로 lifecycle DB에 먼저 저장하고, lifecycle request ID, `executionId`와 안정적인 delivery correlation을 사용해 bounded delivery pool에 작업을 등록한다.
 
 - Delivery 성공: `DELIVERY_PENDING → COMPLETED`
 - 복구 불가능하거나 허용된 retry를 모두 소진한 실패: `DELIVERY_PENDING → DELIVERY_FAILED`
 - Timeout처럼 결과가 불확실하면 같은 delivery correlation으로 상태를 확인하거나 delivery만 재시도한다.
 
-Delivery retry는 Omni AI start command를 다시 호출하지 않는다. AI 응답 원문을 Orchestrator DB에 저장할지, Omni AI Server의 result reference만 저장할지는 실제 결과 조회 계약과 데이터 보존 정책에서 결정한다.
+`ReturnedMessageResultSender`는 결과 전달 transport의 application port다. 현재 adapter가 결과 payload를 전달하며, 추후 NATS adapter도 같은 port를 구현한다. Delivery pool의 queue가 가득 차거나 일시적인 전송 실패가 발생하면 `DELIVERY_PENDING`을 유지하고 recovery worker가 저장된 payload로 delivery만 재시도한다. Delivery retry는 Omni AI command를 다시 호출하지 않는다.
 
 ## Recovery
 
@@ -295,13 +292,13 @@ Non-terminal lifecycle은 상태별로 복구한다.
 | Status | Recovery responsibility |
 | --- | --- |
 | `DETECTED` | 메시지 선정 작업을 conditional claim 후 재개 |
-| `AWAITING_CONFIRMATION` | confirmation delivery가 `PENDING`이면 동일 correlation으로 전송 재개, 이후 응답 대기와 만료 처리 |
+| `AWAITING_CONFIRMATION` | Client confirmation 응답 대기와 만료 처리 |
 | `PROCESSING` | 공통 AI execution reconciliation 수행 |
 | `DELIVERY_PENDING` | 저장된 result correlation으로 delivery만 재개 |
 
 복구 worker의 claim에는 owner token과 유한한 lease를 사용하고 DB conditional update로 획득한다. Lease는 외부 작업의 완료를 의미하지 않으며, 만료된 claim을 다른 instance가 인계할 수 있게 한다. 외부 호출 중 DB transaction이나 row lock을 유지하지 않는다.
 
-Message Query처럼 읽기 전용 작업은 재실행될 수 있다. Confirmation과 result delivery처럼 side effect가 있는 작업은 stable correlation을 사용한다. 외부 서비스가 idempotency 또는 상태 조회를 제공하지 않는 경우 정확히 한 번 전달을 주장하지 않는다.
+Message Query처럼 읽기 전용 작업은 재실행될 수 있다. Result delivery처럼 side effect가 있는 작업은 stable correlation을 사용한다. 외부 서비스가 idempotency 또는 상태 조회를 제공하지 않는 경우 정확히 한 번 전달을 주장하지 않는다.
 
 ## Duplicate Request Response
 
@@ -323,7 +320,6 @@ Message Query처럼 읽기 전용 작업은 재실행될 수 있다. Confirmatio
 
 - Message Query
 - Policy 또는 Permission 외부 조회
-- Confirmation 전송
 - Omni AI start, cancel과 status query
 - Result delivery
 
@@ -339,10 +335,14 @@ returned-message.confirmation-timeout=2m
 returned-message.expiration-sweep-interval=30s
 returned-message.expiration-batch-size=100
 returned-message.recovery-claim-duration=30s
+returned-message.async.execution-pool-size=4
+returned-message.async.delivery-pool-size=2
+returned-message.async.queue-capacity=100
 ```
 
 - Duration에는 단위를 명시한다.
 - Duration과 batch size는 양수여야 한다.
+- 비동기 pool size와 queue capacity는 양수여야 하며 queue는 무제한으로 구성하지 않는다.
 - Confirmation timeout은 client UX와 전체 요청 lifecycle 요구를 기준으로 정한다.
 - Claim duration은 외부 client timeout보다 길게 잡는 값이 아니라 작업 인계 주기와 heartbeat 여부를 함께 고려한다.
 - AI execution reconciliation backoff와 retry 설정은 공통 execution configuration에서 관리한다.

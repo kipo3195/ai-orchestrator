@@ -36,10 +36,9 @@ CREATE TABLE IF NOT EXISTS returned_message_request (
     selected_at DATETIME(6),
     selection_expires_at DATETIME(6),
     confirmation_id VARCHAR(100),
-    confirmation_delivery_status VARCHAR(20),
     confirmation_expires_at DATETIME(6),
     execution_id VARCHAR(100),
-    result_ref VARCHAR(500),
+    result_payload TEXT,
     delivery_id VARCHAR(100),
     failure_stage VARCHAR(40),
     failure_reason VARCHAR(200),
@@ -95,6 +94,7 @@ CREATE TABLE IF NOT EXISTS returned_message_selection_item (
     source_system VARCHAR(50) NOT NULL,
     source_item_type VARCHAR(40) NOT NULL,
     source_item_key VARCHAR(200) NOT NULL,
+    source_item_subject TEXT,
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 
     PRIMARY KEY (selection_ref, sequence_no),
@@ -113,3 +113,9 @@ CREATE TABLE IF NOT EXISTS returned_message_selection_item (
         ON DELETE CASCADE
 
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ALTER TABLE returned_message_selection_item
+--     ADD COLUMN IF NOT EXISTS source_item_subject TEXT;
+
+-- ALTER TABLE returned_message_request
+--     ADD COLUMN IF NOT EXISTS result_payload TEXT;

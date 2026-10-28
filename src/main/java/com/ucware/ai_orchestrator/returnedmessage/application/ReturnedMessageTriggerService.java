@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.ucware.ai_orchestrator.returnedmessage.application.port.LifecycleCreationResult;
-import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageConfirmationSender;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageQuery;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageQuery.MessageSelection;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageQuery.MessageSelectionQuery;
@@ -25,19 +24,16 @@ public class ReturnedMessageTriggerService implements HandleUserReturned {
 
     private final ReturnedMessageRepository repository;
     private final ReturnedMessageQuery messageQuery;
-    private final ReturnedMessageConfirmationSender confirmationSender;
     private final ReturnedMessageAccessEvaluator accessEvaluator;
     private final ReturnedMessageProperties properties;
 
     public ReturnedMessageTriggerService(
             ReturnedMessageRepository repository,
             ReturnedMessageQuery messageQuery,
-            ReturnedMessageConfirmationSender confirmationSender,
             ReturnedMessageAccessEvaluator accessEvaluator,
             ReturnedMessageProperties properties) {
         this.repository = repository;
         this.messageQuery = messageQuery;
-        this.confirmationSender = confirmationSender;
         this.accessEvaluator = accessEvaluator;
         this.properties = properties;
     }
@@ -137,32 +133,9 @@ public class ReturnedMessageTriggerService implements HandleUserReturned {
         }
 
         ReturnedMessageLifecycle awaiting = load(lifecycle);
-        sendConfirmation(awaiting);
         return created
-                ? ReturnedMessageOperationResult.created(load(lifecycle))
-                : ReturnedMessageOperationResult.updated(load(lifecycle));
-    }
-
-    void resendConfirmation(ReturnedMessageLifecycle lifecycle) {
-        sendConfirmation(lifecycle);
-    }
-
-    private void sendConfirmation(ReturnedMessageLifecycle lifecycle) {
-        try {
-            confirmationSender.send(new ReturnedMessageConfirmationSender.ConfirmationPrompt(
-                    lifecycle.requestId(),
-                    lifecycle.absencePeriodId(),
-                    lifecycle.confirmationId(),
-                    lifecycle.messageSelectionRef(),
-                    lifecycle.unreadCount(),
-                    lifecycle.confirmationExpiresAt(),
-                    lifecycle.routingRef()));
-            repository.markConfirmationSent(
-                    lifecycle.tenantId(), lifecycle.requestId(), lifecycle.confirmationId());
-        } catch (RuntimeException exception) {
-            logger.warn("Returned Message confirmation delivery remains pending. requestId={}",
-                    lifecycle.requestId(), exception);
-        }
+                ? ReturnedMessageOperationResult.created(awaiting)
+                : ReturnedMessageOperationResult.updated(awaiting);
     }
 
     private String validateEligibility(ReturnedMessageRequest request) {

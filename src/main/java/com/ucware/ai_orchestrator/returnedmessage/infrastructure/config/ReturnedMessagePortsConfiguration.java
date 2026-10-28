@@ -5,7 +5,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGateway;
-import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageConfirmationSender;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessagePermissionChecker;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageQuery;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageResultSender;
@@ -24,14 +23,6 @@ public class ReturnedMessagePortsConfiguration {
     ReturnedMessageQuery unavailableReturnedMessageQuery() {
         return query -> {
             throw new IllegalStateException("Returned Message Query adapter is not configured");
-        };
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    ReturnedMessageConfirmationSender unavailableReturnedMessageConfirmationSender() {
-        return prompt -> {
-            throw new IllegalStateException("Returned Message confirmation adapter is not configured");
         };
     }
 

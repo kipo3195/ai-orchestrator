@@ -156,7 +156,8 @@ public class JdbcReturnedMessageSelectionRepository
 
     private ReturnedMessageSelection withItems(SelectionRow row) {
         List<ReturnedMessageSelection.Item> items = jdbcClient.sql("""
-                        SELECT source_system, source_item_type, source_item_key, sequence_no
+                        SELECT source_system, source_item_type, source_item_key,
+                               source_item_subject, sequence_no
                         FROM returned_message_selection_item
                         WHERE selection_ref = :selectionRef
                         ORDER BY sequence_no
@@ -166,6 +167,7 @@ public class JdbcReturnedMessageSelectionRepository
                         resultSet.getString("source_system"),
                         resultSet.getString("source_item_type"),
                         resultSet.getString("source_item_key"),
+                        resultSet.getString("source_item_subject"),
                         resultSet.getInt("sequence_no")))
                 .list();
         return new ReturnedMessageSelection(
@@ -202,10 +204,12 @@ public class JdbcReturnedMessageSelectionRepository
             jdbcClient.sql("""
                             INSERT INTO returned_message_selection_item (
                                 selection_ref, sequence_no, source_system,
-                                source_item_type, source_item_key, created_at
+                                source_item_type, source_item_key,
+                                source_item_subject, created_at
                             ) VALUES (
                                 :selectionRef, :sequence, :sourceSystem,
-                                :sourceItemType, :sourceItemKey, CURRENT_TIMESTAMP
+                                :sourceItemType, :sourceItemKey,
+                                :sourceItemSubject, CURRENT_TIMESTAMP
                             )
                             """)
                     .param("selectionRef", selection.messageSelectionRef())
@@ -213,6 +217,7 @@ public class JdbcReturnedMessageSelectionRepository
                     .param("sourceSystem", item.sourceSystem())
                     .param("sourceItemType", item.sourceItemType())
                     .param("sourceItemKey", item.sourceItemKey())
+                    .param("sourceItemSubject", item.subject())
                     .update();
         }
     }

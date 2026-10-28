@@ -52,6 +52,7 @@ class AiExecutionPolicyServiceTests {
                 "tenant-1", AiFeature.CONVERSATION_START, "user-1");
 
         assertThat(decision.reason()).isEqualTo(AiExecutionPolicyReason.GLOBAL_AI_DISABLED);
+        //userProvider 별도의 수정이 없었다는 것을 증명?
         verifyNoInteractions(userProvider);
     }
 
@@ -74,8 +75,10 @@ class AiExecutionPolicyServiceTests {
         AiExecutionPolicyService missingService = service(
                 Map.of("tenant-1", true), Map.of(), mock(UserAiPolicyProvider.class));
 
+                // 기능에 대한 정책이 막혔을때 - FEATURE_AI_DISABLED
         assertThat(disabledService.evaluateFeature("tenant-1", AiFeature.CONVERSATION_START).reason())
                 .isEqualTo(AiExecutionPolicyReason.FEATURE_AI_DISABLED);
+                // 기능에 대한 정책이 누락되었을때 - FEATURE_AI_DISABLED
         assertThat(missingService.evaluateFeature("tenant-1", AiFeature.CONVERSATION_START).reason())
                 .isEqualTo(AiExecutionPolicyReason.FEATURE_AI_DISABLED);
     }

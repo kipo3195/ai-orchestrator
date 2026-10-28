@@ -21,6 +21,7 @@ public record ReturnedMessageSelection(
             String sourceSystem,
             String sourceItemType,
             String sourceItemKey,
+            String subject,
             int sequence) {
     }
 }

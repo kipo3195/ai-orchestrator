@@ -9,10 +9,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Propagation;
@@ -23,11 +26,21 @@ import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.LifecycleCreationResult;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageRequest;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageStatus;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsResult;
 
 @JdbcTest
-@Import(JdbcReturnedMessageRepository.class)
+@Import({JdbcReturnedMessageRepository.class, JdbcReturnedMessageRepositoryTests.Config.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class JdbcReturnedMessageRepositoryTests {
+
+    @TestConfiguration(proxyBeanMethods = false)
+    static class Config {
+
+        @Bean
+        ObjectMapper objectMapper() {
+            return new ObjectMapper().findAndRegisterModules();
+        }
+    }
 
     @Autowired
     private JdbcReturnedMessageRepository repository;
@@ -108,13 +121,13 @@ class JdbcReturnedMessageRepositoryTests {
                 "tenant-1", "user-1", "request-1", "confirmation-1", "execution-1"))
                 .isTrue();
         assertThat(repository.executionSucceeded(
-                "tenant-1", "request-1", "stale-execution", "result-1", "delivery-1"))
+                "tenant-1", "request-1", "stale-execution", result(), "delivery-1"))
                 .isFalse();
         assertThat(repository.executionSucceeded(
-                "tenant-1", "request-1", "execution-1", "result-1", "delivery-1"))
+                "tenant-1", "request-1", "execution-1", result(), "delivery-1"))
                 .isTrue();
         assertThat(repository.executionSucceeded(
-                "tenant-1", "request-1", "execution-1", "result-1", "delivery-1"))
+                "tenant-1", "request-1", "execution-1", result(), "delivery-1"))
                 .isFalse();
         assertThat(repository.deliveryCompleted(
                 "tenant-1", "request-1", "execution-1", "wrong-delivery"))
@@ -124,8 +137,22 @@ class JdbcReturnedMessageRepositoryTests {
                 .isTrue();
 
         assertThat(repository.findOwned("tenant-1", "user-1", "request-1"))
-                .get().extracting(lifecycle -> lifecycle.status())
-                .isEqualTo(ReturnedMessageStatus.COMPLETED);
+                .get().satisfies(lifecycle -> {
+                    assertThat(lifecycle.status()).isEqualTo(ReturnedMessageStatus.COMPLETED);
+                    assertThat(lifecycle.result()).isEqualTo(result());
+                });
+    }
+
+    private ReturnedMessageTopicsResult result() {
+        return new ReturnedMessageTopicsResult(
+                List.of(new ReturnedMessageTopicsResult.Topic(
+                        "제목 1",
+                        "요약",
+                        ReturnedMessageTopicsResult.Priority.NORMAL,
+                        null,
+                        1,
+                        List.of("message-1"))),
+                Instant.parse("2026-10-28T01:00:00Z"));
     }
 
     @Test

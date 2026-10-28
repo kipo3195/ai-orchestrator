@@ -9,6 +9,8 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -21,11 +23,11 @@ import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 import com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessagePersistenceException;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.LifecycleCreationResult;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository;
-import com.ucware.ai_orchestrator.returnedmessage.domain.ConfirmationDeliveryStatus;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageFailureStage;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageLifecycle;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageRequest;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageStatus;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsResult;
 
 @Repository
 public class JdbcReturnedMessageRepository implements ReturnedMessageRepository {
@@ -35,12 +37,15 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
 
     private final JdbcClient jdbcClient;
     private final TransactionTemplate transactionTemplate;
+    private final ObjectMapper objectMapper;
 
     public JdbcReturnedMessageRepository(
             JdbcClient jdbcClient,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager,
+            ObjectMapper objectMapper) {
         this.jdbcClient = jdbcClient;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -208,7 +213,6 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                                 selected_at = :selectedAt,
                                 selection_expires_at = :selectionExpiresAt,
                                 confirmation_id = :confirmationId,
-                                confirmation_delivery_status = 'PENDING',
                                 confirmation_expires_at = :confirmationExpiresAt,
                                 updated_at = CURRENT_TIMESTAMP
                             WHERE tenant_id = :tenantId
@@ -226,25 +230,6 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                     .update() == 1;
         });
         return Boolean.TRUE.equals(updated);
-    }
-
-    @Override
-    public boolean markConfirmationSent(
-            String tenantId, String requestId, String confirmationId) {
-        return jdbcClient.sql("""
-                        UPDATE returned_message_request
-                        SET confirmation_delivery_status = 'SENT',
-                            updated_at = CURRENT_TIMESTAMP
-                        WHERE tenant_id = :tenantId
-                          AND request_id = :requestId
-                          AND status = 'AWAITING_CONFIRMATION'
-                          AND confirmation_id = :confirmationId
-                          AND confirmation_delivery_status = 'PENDING'
-                        """)
-                .param("tenantId", tenantId)
-                .param("requestId", requestId)
-                .param("confirmationId", confirmationId)
-                .update() == 1;
     }
 
     @Override
@@ -421,12 +406,12 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
             String tenantId,
             String requestId,
             String executionId,
-            String resultRef,
+            ReturnedMessageTopicsResult result,
             String deliveryId) {
         return jdbcClient.sql("""
                         UPDATE returned_message_request
                         SET status = 'DELIVERY_PENDING',
-                            result_ref = :resultRef,
+                            result_payload = :resultPayload,
                             delivery_id = :deliveryId,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE tenant_id = :tenantId
@@ -434,7 +419,7 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                           AND status = 'PROCESSING'
                           AND execution_id = :executionId
                         """)
-                .param("resultRef", resultRef)
+                .param("resultPayload", writeResult(result))
                 .param("deliveryId", deliveryId)
                 .param("tenantId", tenantId)
                 .param("requestId", requestId)
@@ -628,11 +613,9 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                 nullableInstant(resultSet, "selected_at"),
                 nullableInstant(resultSet, "selection_expires_at"),
                 resultSet.getString("confirmation_id"),
-                enumValue(ConfirmationDeliveryStatus.class,
-                        resultSet.getString("confirmation_delivery_status")),
                 nullableInstant(resultSet, "confirmation_expires_at"),
                 resultSet.getString("execution_id"),
-                resultSet.getString("result_ref"),
+                readResult(resultSet.getString("result_payload")),
                 resultSet.getString("delivery_id"),
                 enumValue(ReturnedMessageFailureStage.class,
                         resultSet.getString("failure_stage")),
@@ -678,6 +661,27 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
         return value == null ? null : Enum.valueOf(type, value);
     }
 
+    private String writeResult(ReturnedMessageTopicsResult result) {
+        try {
+            return objectMapper.writeValueAsString(result);
+        } catch (JsonProcessingException exception) {
+            throw new ReturnedMessagePersistenceException(
+                    "Failed to serialize Returned Message result", exception);
+        }
+    }
+
+    private ReturnedMessageTopicsResult readResult(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(value, ReturnedMessageTopicsResult.class);
+        } catch (JsonProcessingException exception) {
+            throw new ReturnedMessagePersistenceException(
+                    "Failed to deserialize Returned Message result", exception);
+        }
+    }
+
     private record LifecycleKey(String tenantId, String requestId) {
     }
 
@@ -686,8 +690,8 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                    offline_since, returned_at, trigger_expires_at,
                    target_ref, connection_type, status,
                    message_selection_ref, unread_count, selected_at, selection_expires_at,
-                   confirmation_id, confirmation_delivery_status, confirmation_expires_at,
-                   execution_id, result_ref, delivery_id,
+                   confirmation_id, confirmation_expires_at,
+                   execution_id, result_payload, delivery_id,
                    failure_stage, failure_reason, created_at, updated_at
             FROM returned_message_request
             """;

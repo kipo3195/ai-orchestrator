@@ -1,6 +1,7 @@
 package com.ucware.ai_orchestrator.returnedmessage.application.port;
 
 import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsResult;
 
 public interface ReturnedMessageResultSender {
 
@@ -10,7 +11,7 @@ public interface ReturnedMessageResultSender {
             String requestId,
             String executionId,
             String deliveryId,
-            String resultRef,
+            ReturnedMessageTopicsResult result,
             RoutingRef routingRef) {
     }
 

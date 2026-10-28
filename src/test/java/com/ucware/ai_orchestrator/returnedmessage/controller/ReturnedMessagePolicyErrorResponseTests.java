@@ -3,6 +3,7 @@ package com.ucware.ai_orchestrator.returnedmessage.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -33,7 +34,9 @@ import com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessageOpe
 import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGateway;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageConfirmation;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageDecision;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageLifecycle;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageRequest;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageStatus;
 import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 
 @WebMvcTest(value = ReturnedMessageController.class, properties = "api.version=v1")
@@ -271,6 +274,38 @@ class ReturnedMessagePolicyErrorResponseTests {
     }
 
     @Test
+    void acceptedConfirmationReturns202WhileAiRunsInBackground() throws Exception {
+        ReturnedMessageLifecycle processing = mock(ReturnedMessageLifecycle.class);
+        when(processing.status()).thenReturn(ReturnedMessageStatus.PROCESSING);
+        when(processing.requestId()).thenReturn("request-1");
+        when(processing.triggerId()).thenReturn("trigger-1");
+        when(processing.executionId()).thenReturn("execution-1");
+        when(handleConfirmation.handle(any()))
+                .thenReturn(ReturnedMessageOperationResult.updated(processing));
+
+        mockMvc.perform(post("/api/v1/returned-messages/request-1/confirmations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "absencePeriodId": "period-1",
+                                  "confirmationId": "confirmation-1",
+                                  "messageSelectionRef": "selection-1",
+                                  "decision": "YES",
+                                  "decidedAt": "2026-10-19T06:01:00Z",
+                                  "routingRef": {
+                                    "tenantId": "tenant-1",
+                                    "userId": "user-1",
+                                    "targetRef": "target-1",
+                                    "connectionType": 1
+                                  }
+                                }
+                                """))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("PROCESSING"))
+                .andExpect(jsonPath("$.executionId").value("execution-1"));
+    }
+
+    @Test
     void confirmationRequiresConnectionType() throws Exception {
         mockMvc.perform(post("/api/v1/returned-messages/request-1/confirmations")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -308,8 +343,8 @@ class ReturnedMessagePolicyErrorResponseTests {
                                   "tenantId": "tenant-1",
                                   "userId": "user-1",
                                   "executionId": "execution-1",
-                                  "status": "SUCCEEDED",
-                                  "resultRef": "result-1"
+                                  "status": "FAILED",
+                                  "failureReason": "AI_EXECUTION_FAILED"
                                 }
                                 """))
                 .andExpect(status().isOk());
@@ -320,7 +355,7 @@ class ReturnedMessagePolicyErrorResponseTests {
                 "request-1",
                 "execution-1",
                 new AiExecutionGateway.ExecutionResult(
-                        AiExecutionGateway.Status.SUCCEEDED, "result-1", null));
+                        AiExecutionGateway.Status.FAILED, null, "AI_EXECUTION_FAILED"));
     }
 
     private ObjectNode validUserReturnedBody() throws Exception {

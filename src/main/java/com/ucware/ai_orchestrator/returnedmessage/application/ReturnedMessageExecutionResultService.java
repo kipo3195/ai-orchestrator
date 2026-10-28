@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGateway;
+import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageAsyncTaskExecutor;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageResultSender;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageFailureStage;
@@ -21,12 +22,15 @@ public class ReturnedMessageExecutionResultService
 
     private final ReturnedMessageRepository repository;
     private final ReturnedMessageResultSender resultSender;
+    private final ReturnedMessageAsyncTaskExecutor asyncTaskExecutor;
 
     public ReturnedMessageExecutionResultService(
             ReturnedMessageRepository repository,
-            ReturnedMessageResultSender resultSender) {
+            ReturnedMessageResultSender resultSender,
+            ReturnedMessageAsyncTaskExecutor asyncTaskExecutor) {
         this.repository = repository;
         this.resultSender = resultSender;
+        this.asyncTaskExecutor = asyncTaskExecutor;
     }
 
     @Override
@@ -58,9 +62,9 @@ public class ReturnedMessageExecutionResultService
     private ReturnedMessageOperationResult succeeded(
             ReturnedMessageLifecycle lifecycle,
             AiExecutionGateway.ExecutionResult result) {
-        if (result.resultRef() == null || result.resultRef().isBlank()) {
+        if (result.result() == null) {
             return failed(lifecycle, new AiExecutionGateway.ExecutionResult(
-                    AiExecutionGateway.Status.FAILED, null, "AI_RESULT_REFERENCE_MISSING"));
+                    AiExecutionGateway.Status.FAILED, null, "AI_RESULT_MISSING"));
         }
 
         String deliveryId = UUID.randomUUID().toString();
@@ -68,15 +72,18 @@ public class ReturnedMessageExecutionResultService
                 lifecycle.tenantId(),
                 lifecycle.requestId(),
                 lifecycle.executionId(),
-                result.resultRef(),
+                result.result(),
                 deliveryId);
         if (!transitioned) {
             return ReturnedMessageOperationResult.existing(load(lifecycle));
         }
 
         ReturnedMessageLifecycle pending = load(lifecycle);
-        deliver(pending);
-        return ReturnedMessageOperationResult.updated(load(lifecycle));
+        if (!asyncTaskExecutor.submitDelivery(() -> deliver(pending))) {
+            logger.warn("Returned Message result delivery remains pending. requestId={}, executionId={}",
+                    pending.requestId(), pending.executionId());
+        }
+        return ReturnedMessageOperationResult.updated(pending);
     }
 
     private ReturnedMessageOperationResult failed(
@@ -102,13 +109,20 @@ public class ReturnedMessageExecutionResultService
     }
 
     private void deliver(ReturnedMessageLifecycle lifecycle) {
+        if (lifecycle.result() == null) {
+            repository.deliveryFailed(
+                    lifecycle.tenantId(), lifecycle.requestId(),
+                    lifecycle.executionId(), lifecycle.deliveryId(),
+                    "RESULT_PAYLOAD_MISSING");
+            return;
+        }
         try {
             ReturnedMessageResultSender.DeliveryOutcome outcome = resultSender.send(
                     new ReturnedMessageResultSender.ResultDelivery(
                             lifecycle.requestId(),
                             lifecycle.executionId(),
                             lifecycle.deliveryId(),
-                            lifecycle.resultRef(),
+                            lifecycle.result(),
                             lifecycle.routingRef()));
             if (outcome == ReturnedMessageResultSender.DeliveryOutcome.DELIVERED) {
                 repository.deliveryCompleted(

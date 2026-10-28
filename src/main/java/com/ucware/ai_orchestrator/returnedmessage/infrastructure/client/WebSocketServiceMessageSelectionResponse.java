@@ -13,6 +13,7 @@ public record WebSocketServiceMessageSelectionResponse(
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Message(
-            @JsonProperty("msg_key") String messageKey) {
+            @JsonProperty("msg_key") String messageKey,
+            @JsonProperty("msg_subject") String subject) {
     }
 }

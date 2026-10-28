@@ -80,8 +80,8 @@ class WebSocketServiceReturnedMessageQueryClientTests {
             assertThat(objectMapper.readTree(requestBody.get())).isEqualTo(objectMapper.readTree("""
                     {
                       "sqlName": "MSG_UNREAD",
-                      "startDate": "2026-10-20T00:00:00Z",
-                      "endDate": "2026-10-20T01:00:00Z",
+                      "startDate": "202610200000",
+                      "endDate": "202610200100",
                       "searchDate": "99999999999999999",
                       "urgent": "N",
                       "keyword": "",
@@ -99,6 +99,9 @@ class WebSocketServiceReturnedMessageQueryClientTests {
             assertThat(selectionCaptor.getValue().items())
                     .extracting(ReturnedMessageSelection.Item::sourceItemKey)
                     .containsExactly("MSG_KEY_1", "MSG_KEY_2");
+            assertThat(selectionCaptor.getValue().items())
+                    .extracting(ReturnedMessageSelection.Item::subject)
+                    .containsExactly("업무 보고", "업무 요청");
         } finally {
             server.stop(0);
         }
@@ -219,8 +222,8 @@ class WebSocketServiceReturnedMessageQueryClientTests {
                 EXPIRES_AT,
                 List.of(
                         new ReturnedMessageSelection.Item(
-                                "WEBSOCKET_SERVICE", "MESSAGE", "MSG_KEY_1", 0),
+                                "WEBSOCKET_SERVICE", "MESSAGE", "MSG_KEY_1", "업무 보고", 0),
                         new ReturnedMessageSelection.Item(
-                                "WEBSOCKET_SERVICE", "MESSAGE", "MSG_KEY_2", 1)));
+                                "WEBSOCKET_SERVICE", "MESSAGE", "MSG_KEY_2", "업무 요청", 1)));
     }
 }

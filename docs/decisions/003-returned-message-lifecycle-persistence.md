@@ -58,7 +58,9 @@ Application Service의 `synchronized`, 사용자별 lock 또는 process-local sc
 
 Returned Message Topics의 durable lifecycle은 AI Orchestrator가 논리적으로 소유하는 관계형 persistence 영역에 저장한다. Infrastructure repository는 Spring `JdbcClient`를 사용한다.
 
-Message owner가 별도의 selection reference를 제공하지 않는 경우 AI Orchestrator는 조회 시점의 외부 메시지 식별자 집합도 같은 persistence 영역에 저장한다. `returned_message_selection`은 UUID 기반 `messageSelectionRef`와 owner, 만료 시각을 보관하고 `returned_message_selection_item`은 하나의 선택에 포함된 source item key를 1:N으로 보관한다. 이는 AI 실행 입력을 재현하기 위한 참조 스냅샷이며 Messenger 메시지 본문이나 읽음 상태의 소유권을 가져오는 것은 아니다.
+Message owner가 별도의 selection reference를 제공하지 않는 경우 AI Orchestrator는 조회 시점의 외부 메시지 식별자 집합도 같은 persistence 영역에 저장한다. `returned_message_selection`은 UUID 기반 `messageSelectionRef`와 owner, 만료 시각을 보관하고 `returned_message_selection_item`은 하나의 선택에 포함된 source item key와 nullable subject snapshot을 1:N으로 보관한다. 이는 AI 실행 입력을 재현하기 위한 참조 스냅샷이며 Messenger 메시지 본문이나 읽음 상태의 소유권을 가져오는 것은 아니다.
+
+현재 persistence 범위에는 복호화된 메시지 본문을 포함하지 않는다. 향후 Topic 판단에 본문이 필요하다고 결정되면, 유효한 사용자 `YES` confirmation 이후 저장된 source item key를 사용해 Message owner로부터 해당 쪽지의 복호화된 내용을 조회하는 별도 계약을 추가할 수 있다. 이 확장은 권한 재검증, 조회 결과와 selection의 correlation, 최소 데이터 범위, 재시도 시 동일 입력 보장과 본문 보존 여부를 함께 결정한 뒤 적용한다.
 
 이 lifecycle 저장소는 [001. Policy Persistence Access](001-policy-persistence-access.md)의 읽기 전용 Policy 저장소와 소유권이 다르다. 같은 데이터베이스 제품이나 물리적 cluster를 사용할 수는 있지만 AI Orchestrator가 lifecycle table과 migration을 소유하며 Policy table에 쓰지 않는다. 실제 datasource 분리와 데이터베이스 제품은 배포 설계에서 결정한다.
 
@@ -150,7 +152,7 @@ Lifecycle insert와 각 conditional update는 짧은 DB transaction으로 실행
 - DB 안에서 경쟁하는 상태 전이의 단일 성공
 - 사용자 응답과 만료의 일관된 판정
 - lifecycle 상태의 process 재시작 후 복원
-- 사용자 확인 전 확정된 source item key 집합의 process 재시작 후 복원
+- 사용자 확인 전 확정된 source item key와 nullable subject snapshot의 process 재시작 후 복원
 
 이 결정만으로 Omni AI Server의 실행이나 Realtime delivery가 정확히 한 번 수행되는 것은 보장하지 않는다. 외부 호출의 불확실한 결과, 실행 취소, 재시도와 복구는 Decision 004의 stable execution ID와 reconciliation 계약을 적용한다.
 
@@ -168,7 +170,7 @@ Lifecycle insert와 각 conditional update는 짧은 DB transaction으로 실행
 ### Negative
 
 - Lifecycle table, index, migration과 retention 관리가 필요하다.
-- Selection과 selection item table의 만료 데이터 정리 및 retention 관리가 필요하다.
+- Selection과 selection item에 저장된 key 및 subject snapshot의 만료 데이터 정리와 retention 관리가 필요하다.
 - Unique constraint 충돌과 conditional update `0`건을 정상적인 멱등 결과 또는 계약 위반으로 구분해야 한다.
 - DB 시각을 사용하는 SQL과 만료 처리에 대한 integration test가 필요하다.
 - 외부 호출의 멱등성과 복구를 위해 Decision 004의 Omni AI Server 계약이 추가로 필요하다.

@@ -34,10 +34,9 @@ CREATE TABLE IF NOT EXISTS returned_message_request (
     selected_at TIMESTAMP WITH TIME ZONE,
     selection_expires_at TIMESTAMP WITH TIME ZONE,
     confirmation_id VARCHAR(100),
-    confirmation_delivery_status VARCHAR(20),
     confirmation_expires_at TIMESTAMP WITH TIME ZONE,
     execution_id VARCHAR(100),
-    result_ref VARCHAR(500),
+    result_payload TEXT,
     delivery_id VARCHAR(100),
     failure_stage VARCHAR(40),
     failure_reason VARCHAR(200),
@@ -84,6 +83,7 @@ CREATE TABLE IF NOT EXISTS returned_message_selection_item (
     source_system VARCHAR(50) NOT NULL,
     source_item_type VARCHAR(40) NOT NULL,
     source_item_key VARCHAR(200) NOT NULL,
+    source_item_subject TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (selection_ref, sequence_no),
     CONSTRAINT uq_returned_message_selection_item
@@ -93,3 +93,9 @@ CREATE TABLE IF NOT EXISTS returned_message_selection_item (
         REFERENCES returned_message_selection (selection_ref)
         ON DELETE CASCADE
 );
+
+ALTER TABLE returned_message_selection_item
+    ADD COLUMN IF NOT EXISTS source_item_subject TEXT;
+
+ALTER TABLE returned_message_request
+    ADD COLUMN IF NOT EXISTS result_payload TEXT;

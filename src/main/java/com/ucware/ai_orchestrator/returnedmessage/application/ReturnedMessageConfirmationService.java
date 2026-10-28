@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGateway;
+import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageAsyncTaskExecutor;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageSelectionRepository;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageConfirmation;
@@ -23,18 +24,21 @@ public class ReturnedMessageConfirmationService implements HandleReturnedMessage
     private final ReturnedMessageAccessEvaluator accessEvaluator;
     private final AiExecutionGateway executionGateway;
     private final HandleReturnedMessageExecutionResult executionResultHandler;
+    private final ReturnedMessageAsyncTaskExecutor asyncTaskExecutor;
 
     public ReturnedMessageConfirmationService(
             ReturnedMessageRepository repository,
             ReturnedMessageSelectionRepository selectionRepository,
             ReturnedMessageAccessEvaluator accessEvaluator,
             AiExecutionGateway executionGateway,
-            HandleReturnedMessageExecutionResult executionResultHandler) {
+            HandleReturnedMessageExecutionResult executionResultHandler,
+            ReturnedMessageAsyncTaskExecutor asyncTaskExecutor) {
         this.repository = repository;
         this.selectionRepository = selectionRepository;
         this.accessEvaluator = accessEvaluator;
         this.executionGateway = executionGateway;
         this.executionResultHandler = executionResultHandler;
+        this.asyncTaskExecutor = asyncTaskExecutor;
     }
 
     @Override
@@ -116,8 +120,11 @@ public class ReturnedMessageConfirmationService implements HandleReturnedMessage
         }
 
         ReturnedMessageLifecycle processing = load(lifecycle);
-        dispatch(processing, selection);
-        return ReturnedMessageOperationResult.updated(load(lifecycle));
+        if (!asyncTaskExecutor.submitExecution(() -> dispatch(processing, selection))) {
+            logger.warn("Returned Message AI execution remains pending. requestId={}, executionId={}",
+                    processing.requestId(), processing.executionId());
+        }
+        return ReturnedMessageOperationResult.updated(processing);
     }
 
     void redispatch(ReturnedMessageLifecycle lifecycle) {

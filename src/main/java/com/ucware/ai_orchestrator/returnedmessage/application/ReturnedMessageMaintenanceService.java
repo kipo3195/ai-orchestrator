@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 
 import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGateway;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository;
-import com.ucware.ai_orchestrator.returnedmessage.domain.ConfirmationDeliveryStatus;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageLifecycle;
 import com.ucware.ai_orchestrator.returnedmessage.infrastructure.config.ReturnedMessageProperties;
 
@@ -77,11 +76,7 @@ public class ReturnedMessageMaintenanceService {
         switch (lifecycle.status()) {
             case DETECTED -> triggerService.resumeDetection(lifecycle);
             case AWAITING_CONFIRMATION -> {
-                if (lifecycle.confirmationDeliveryStatus() == ConfirmationDeliveryStatus.PENDING
-                        && lifecycle.confirmationExpiresAt() != null
-                        && lifecycle.confirmationExpiresAt().isAfter(repository.currentTime())) {
-                    triggerService.resendConfirmation(lifecycle);
-                }
+                // The client owns popup creation; the lifecycle only waits for its response.
             }
             case PROCESSING -> reconcile(lifecycle);
             case DELIVERY_PENDING -> resultService.retryDelivery(lifecycle);

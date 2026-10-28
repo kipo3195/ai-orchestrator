@@ -3,6 +3,7 @@ package com.ucware.ai_orchestrator.returnedmessage.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -19,9 +20,9 @@ import org.mockito.ArgumentCaptor;
 import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
 import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGateway;
+import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageAsyncTaskExecutor;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageSelectionRepository;
-import com.ucware.ai_orchestrator.returnedmessage.domain.ConfirmationDeliveryStatus;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageConfirmation;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageDecision;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageLifecycle;
@@ -37,6 +38,7 @@ class ReturnedMessageConfirmationServiceTests {
     private ReturnedMessageAccessEvaluator accessEvaluator;
     private AiExecutionGateway executionGateway;
     private HandleReturnedMessageExecutionResult resultHandler;
+    private ReturnedMessageAsyncTaskExecutor asyncTaskExecutor;
     private ReturnedMessageConfirmationService service;
 
     @BeforeEach
@@ -46,8 +48,14 @@ class ReturnedMessageConfirmationServiceTests {
         accessEvaluator = mock(ReturnedMessageAccessEvaluator.class);
         executionGateway = mock(AiExecutionGateway.class);
         resultHandler = mock(HandleReturnedMessageExecutionResult.class);
+        asyncTaskExecutor = mock(ReturnedMessageAsyncTaskExecutor.class);
         service = new ReturnedMessageConfirmationService(
-                repository, selectionRepository, accessEvaluator, executionGateway, resultHandler);
+                repository, selectionRepository, accessEvaluator, executionGateway,
+                resultHandler, asyncTaskExecutor);
+        when(asyncTaskExecutor.submitExecution(any())).thenAnswer(invocation -> {
+            invocation.<Runnable>getArgument(0).run();
+            return true;
+        });
         when(selectionRepository.findOwnedActive(
                 "selection-1", "request-1", "tenant-1", "user-1", "period-1"))
                 .thenReturn(Optional.of(selection()));
@@ -81,6 +89,30 @@ class ReturnedMessageConfirmationServiceTests {
                 .containsExactly("message-1", "message-2", "message-3");
         verify(selectionRepository).findOwnedActive(
                 "selection-1", "request-1", "tenant-1", "user-1", "period-1");
+    }
+
+    @Test
+    void yesReturnsProcessingWithoutCallingAiOnRequestThread() {
+        ReturnedMessageLifecycle awaiting = lifecycle(ReturnedMessageStatus.AWAITING_CONFIRMATION, null);
+        ReturnedMessageLifecycle processing = lifecycle(ReturnedMessageStatus.PROCESSING, "execution-1");
+        when(repository.findOwned("tenant-1", "user-1", "request-1"))
+                .thenReturn(Optional.of(awaiting), Optional.of(processing));
+        when(repository.currentTime()).thenReturn(NOW);
+        when(accessEvaluator.evaluateAiContext("tenant-1", "user-1", "period-1", "selection-1"))
+                .thenReturn(ReturnedMessageAccessEvaluator.AccessDecision.allow());
+        when(repository.startProcessing(
+                org.mockito.ArgumentMatchers.eq("tenant-1"),
+                org.mockito.ArgumentMatchers.eq("user-1"),
+                org.mockito.ArgumentMatchers.eq("request-1"),
+                org.mockito.ArgumentMatchers.eq("confirmation-1"),
+                any())).thenReturn(true);
+        doReturn(true).when(asyncTaskExecutor).submitExecution(any());
+
+        ReturnedMessageOperationResult result = service.handle(confirmation(ReturnedMessageDecision.YES));
+
+        assertThat(result.lifecycle().status()).isEqualTo(ReturnedMessageStatus.PROCESSING);
+        verify(asyncTaskExecutor).submitExecution(any());
+        verify(executionGateway, never()).start(any());
     }
 
     @Test
@@ -192,7 +224,6 @@ class ReturnedMessageConfirmationServiceTests {
                 NOW,
                 NOW.plusSeconds(600),
                 "confirmation-1",
-                ConfirmationDeliveryStatus.SENT,
                 NOW.plusSeconds(120),
                 executionId,
                 null,
@@ -214,10 +245,10 @@ class ReturnedMessageConfirmationServiceTests {
                 NOW.plusSeconds(600),
                 java.util.List.of(
                         new ReturnedMessageSelection.Item(
-                                "WEBSOCKET_SERVICE", "MESSAGE", "message-1", 0),
+                                "WEBSOCKET_SERVICE", "MESSAGE", "message-1", "제목 1", 0),
                         new ReturnedMessageSelection.Item(
-                                "WEBSOCKET_SERVICE", "MESSAGE", "message-2", 1),
+                                "WEBSOCKET_SERVICE", "MESSAGE", "message-2", "제목 2", 1),
                         new ReturnedMessageSelection.Item(
-                                "WEBSOCKET_SERVICE", "MESSAGE", "message-3", 2)));
+                                "WEBSOCKET_SERVICE", "MESSAGE", "message-3", "제목 3", 2)));
     }
 }

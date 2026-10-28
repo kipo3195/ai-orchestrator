@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageSelection;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsResult;
 
 public interface AiExecutionGateway {
 
@@ -29,7 +30,7 @@ public interface AiExecutionGateway {
 
     record ExecutionResult(
             Status status,
-            String resultRef,
+            ReturnedMessageTopicsResult result,
             String safeFailureReason) {
 
         public static ExecutionResult accepted() {

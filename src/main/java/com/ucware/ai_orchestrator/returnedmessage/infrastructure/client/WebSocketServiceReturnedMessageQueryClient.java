@@ -5,6 +5,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -33,6 +35,8 @@ public class WebSocketServiceReturnedMessageQueryClient implements ReturnedMessa
     private static final String SUCCESS_RESULT_CODE = "100";
     private static final String SOURCE_SYSTEM = "WEBSOCKET_SERVICE";
     private static final String SOURCE_ITEM_TYPE = "MESSAGE";
+    private static final DateTimeFormatter DATE_MINUTE_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyyMMddHHmm").withZone(ZoneOffset.UTC);
 
     private final URI selectionUri;
     private final ReturnedMessageQueryProperties properties;
@@ -58,8 +62,8 @@ public class WebSocketServiceReturnedMessageQueryClient implements ReturnedMessa
         WebSocketServiceMessageSelectionRequest requestBody =
                 new WebSocketServiceMessageSelectionRequest(
                         "MSG_UNREAD",
-                        String.valueOf(query.offlineSince()),
-                        String.valueOf(query.returnedAt()),
+                        DATE_MINUTE_FORMATTER.format(query.offlineSince()),
+                        DATE_MINUTE_FORMATTER.format(query.returnedAt()),
                         "99999999999999999",
                         "N",
                         "",
@@ -170,6 +174,7 @@ public class WebSocketServiceReturnedMessageQueryClient implements ReturnedMessa
                     SOURCE_SYSTEM,
                     SOURCE_ITEM_TYPE,
                     messageKey,
+                    message.subject(),
                     index));
         }
         return List.copyOf(items);

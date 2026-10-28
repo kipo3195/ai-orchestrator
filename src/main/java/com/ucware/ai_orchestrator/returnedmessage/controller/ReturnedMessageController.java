@@ -5,6 +5,7 @@ import java.time.Instant;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +22,8 @@ import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageConfirma
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageDecision;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageLifecycle;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageRequest;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageStatus;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsResult;
 import com.ucware.ai_orchestrator.routing.controller.RoutingRefRequest;
 import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
 import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
@@ -82,7 +85,10 @@ public class ReturnedMessageController {
                         request.decidedAt(),
                         routingRef.targetRef(),
                         connectionType));
-        return ResponseEntity.ok(ReturnedMessageResponse.from(result));
+        ReturnedMessageResponse response = ReturnedMessageResponse.from(result);
+        return confirmationStatus(request.decision(), result) == HttpStatus.ACCEPTED
+                ? ResponseEntity.accepted().body(response)
+                : ResponseEntity.ok(response);
     }
 
     private static int requireConnectionType(RoutingRefRequest routingRef) {
@@ -91,6 +97,18 @@ public class ReturnedMessageController {
                     "Returned Message routing reference requires connectionType");
         }
         return routingRef.connectionType();
+    }
+
+    private static HttpStatus confirmationStatus(
+            ReturnedMessageDecision decision,
+            ReturnedMessageOperationResult result) {
+        ReturnedMessageLifecycle lifecycle = result.lifecycle();
+        if (decision == ReturnedMessageDecision.YES && lifecycle != null
+                && (lifecycle.status() == ReturnedMessageStatus.PROCESSING
+                || lifecycle.status() == ReturnedMessageStatus.DELIVERY_PENDING)) {
+            return HttpStatus.ACCEPTED;
+        }
+        return HttpStatus.OK;
     }
 
     @PostMapping("/{requestId}/execution-results")
@@ -103,7 +121,7 @@ public class ReturnedMessageController {
                 requestId,
                 request.executionId(),
                 new AiExecutionGateway.ExecutionResult(
-                        request.status(), request.resultRef(), request.failureReason()));
+                        request.status(), request.result(), request.failureReason()));
         return ResponseEntity.ok(ReturnedMessageResponse.from(result));
     }
 
@@ -133,7 +151,7 @@ public class ReturnedMessageController {
             @NotBlank String userId,
             @NotBlank String executionId,
             @NotNull AiExecutionGateway.Status status,
-            String resultRef,
+            ReturnedMessageTopicsResult result,
             String failureReason) {
     }
 

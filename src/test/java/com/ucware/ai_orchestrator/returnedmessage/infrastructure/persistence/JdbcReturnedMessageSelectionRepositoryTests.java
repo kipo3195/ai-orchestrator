@@ -46,6 +46,9 @@ class JdbcReturnedMessageSelectionRepositoryTests {
         assertThat(created.items())
                 .extracting(ReturnedMessageSelection.Item::sourceItemKey)
                 .containsExactly("message-1", "message-2");
+        assertThat(created.items())
+                .extracting(ReturnedMessageSelection.Item::subject)
+                .containsExactly("제목 1", null);
         assertThat(repository.findOwnedActive(
                 created.messageSelectionRef(),
                 "request-1", "tenant-1", "user-1", "period-1"))
@@ -100,9 +103,9 @@ class JdbcReturnedMessageSelectionRepositoryTests {
                 "period-1",
                 List.of(
                         new ReturnedMessageSelection.Item(
-                                "WEBSOCKET_SERVICE", "MESSAGE", "message-1", 0),
+                                "WEBSOCKET_SERVICE", "MESSAGE", "message-1", "제목 1", 0),
                         new ReturnedMessageSelection.Item(
-                                "WEBSOCKET_SERVICE", "MESSAGE", "message-2", 1)));
+                                "WEBSOCKET_SERVICE", "MESSAGE", "message-2", null, 1)));
     }
 
     private void insertLifecycle() {

@@ -70,8 +70,8 @@
 
 | 리뷰 | 상태 | Reviewed At | Reviewed Commit | Notes |
 |---|---|---|---|---|
-| Scenario | Ready for Review | - | - | 신규 시나리오 리뷰 대기 |
-| Assertion | Ready for Review | - | - | 신규 assertion 리뷰 대기 |
+| Scenario | Approved | 2026-10-28 | Working tree (base `9aae7ed`) | 차단 이슈 없음 |
+| Assertion | Approved | 2026-10-28 | Working tree (base `9aae7ed`) | 모든 Expected Results가 실제 assertion에 매핑되며 차단 이슈 없음 |
 
 ## Automated Test Mapping
 

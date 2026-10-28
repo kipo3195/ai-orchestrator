@@ -8,6 +8,7 @@ import java.util.Optional;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageFailureStage;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageLifecycle;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageRequest;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsResult;
 
 public interface ReturnedMessageRepository {
 
@@ -28,8 +29,6 @@ public interface ReturnedMessageRepository {
             Instant selectionExpiresAt,
             String confirmationId,
             Duration confirmationTimeout);
-
-    boolean markConfirmationSent(String tenantId, String requestId, String confirmationId);
 
     boolean failDetection(String tenantId, String requestId, String safeReason);
 
@@ -65,7 +64,7 @@ public interface ReturnedMessageRepository {
             String tenantId,
             String requestId,
             String executionId,
-            String resultRef,
+            ReturnedMessageTopicsResult result,
             String deliveryId);
 
     boolean executionFailed(
