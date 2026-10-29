@@ -109,6 +109,8 @@ public class ReturnedMessageConfirmationService implements HandleReturnedMessage
 
         ReturnedMessageSelection selection = loadSelection(lifecycle, true);
         String executionId = UUID.randomUUID().toString();
+
+        // 비동기 작업 등록
         boolean transitioned = repository.startProcessing(
                 lifecycle.tenantId(),
                 lifecycle.userId(),

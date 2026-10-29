@@ -162,6 +162,8 @@ public class ReturnedMessageController {
             String reason,
             String status,
             Integer unreadCount,
+            String confirmationId,
+            String messageSelectionRef,
             Instant confirmationExpiresAt,
             String executionId) {
 
@@ -187,6 +189,8 @@ public class ReturnedMessageController {
                     result.reason(),
                     lifecycle == null ? null : lifecycle.status().name(),
                     lifecycle == null ? null : lifecycle.unreadCount(),
+                    lifecycle == null ? null : lifecycle.confirmationId(),
+                    lifecycle == null ? null : lifecycle.messageSelectionRef(),
                     lifecycle == null ? null : lifecycle.confirmationExpiresAt(),
                     lifecycle == null ? null : lifecycle.executionId());
         }

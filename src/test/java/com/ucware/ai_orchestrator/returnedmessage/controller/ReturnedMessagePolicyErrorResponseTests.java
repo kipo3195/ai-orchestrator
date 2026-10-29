@@ -274,6 +274,27 @@ class ReturnedMessagePolicyErrorResponseTests {
     }
 
     @Test
+    void awaitingConfirmationResponseIncludesConfirmationCorrelation() throws Exception {
+        ReturnedMessageLifecycle awaiting = mock(ReturnedMessageLifecycle.class);
+        when(awaiting.status()).thenReturn(ReturnedMessageStatus.AWAITING_CONFIRMATION);
+        when(awaiting.requestId()).thenReturn("request-1");
+        when(awaiting.triggerId()).thenReturn("trigger-1");
+        when(awaiting.confirmationId()).thenReturn("confirmation-1");
+        when(awaiting.messageSelectionRef()).thenReturn("selection-1");
+        when(handleUserReturned.handle(any()))
+                .thenReturn(ReturnedMessageOperationResult.created(awaiting));
+
+        mockMvc.perform(post("/api/v1/returned-messages")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validUserReturnedBody())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.requestId").value("request-1"))
+                .andExpect(jsonPath("$.status").value("AWAITING_CONFIRMATION"))
+                .andExpect(jsonPath("$.confirmationId").value("confirmation-1"))
+                .andExpect(jsonPath("$.messageSelectionRef").value("selection-1"));
+    }
+
+    @Test
     void acceptedConfirmationReturns202WhileAiRunsInBackground() throws Exception {
         ReturnedMessageLifecycle processing = mock(ReturnedMessageLifecycle.class);
         when(processing.status()).thenReturn(ReturnedMessageStatus.PROCESSING);
