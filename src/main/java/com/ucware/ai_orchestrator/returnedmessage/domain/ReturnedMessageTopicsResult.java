@@ -36,6 +36,7 @@ public record ReturnedMessageTopicsResult(
         LOW,
         NORMAL,
         HIGH,
-        URGENT
+        URGENT,
+        UNKNOWN
     }
 }

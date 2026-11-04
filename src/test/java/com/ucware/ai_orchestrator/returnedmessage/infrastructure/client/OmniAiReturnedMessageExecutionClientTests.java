@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 
 import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGateway;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageSelection;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsResult;
 import com.ucware.ai_orchestrator.returnedmessage.infrastructure.config.ReturnedMessageAiProperties;
 
 class OmniAiReturnedMessageExecutionClientTests {
@@ -39,7 +40,7 @@ class OmniAiReturnedMessageExecutionClientTests {
                     "topics": [{
                       "topic": "제목 1",
                       "summary": "요약",
-                      "priority": "NORMAL",
+                      "priority": "UNKNOWN",
                       "priority_reason": null,
                       "message_count": 2,
                       "source_message_refs": ["message-1", "message-2"]
@@ -55,6 +56,8 @@ class OmniAiReturnedMessageExecutionClientTests {
             assertThat(result.status()).isEqualTo(AiExecutionGateway.Status.SUCCEEDED);
             assertThat(result.result().topics()).hasSize(1);
             assertThat(result.result().topics().get(0).topic()).isEqualTo("제목 1");
+            assertThat(result.result().topics().get(0).priority())
+                    .isEqualTo(ReturnedMessageTopicsResult.Priority.UNKNOWN);
             assertThat(result.result().topics().get(0).sourceMessageRefs())
                     .containsExactly("message-1", "message-2");
             assertThat(recorded.method.get()).isEqualTo("POST");
