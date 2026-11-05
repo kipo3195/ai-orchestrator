@@ -41,7 +41,11 @@ class OmniAiReturnedMessageExecutionClientTests {
                       "topic": "제목 1",
                       "summary": "요약",
                       "priority": "UNKNOWN",
-                      "priority_reason": null,
+                      "priority_reason": "제목만으로 우선순위를 판단하기 어렵습니다.",
+                      "reply_required": true,
+                      "reply_reason": "답변 요청이 있습니다.",
+                      "action_required": true,
+                      "action_reason": "후속 조치 요청이 있습니다.",
                       "message_count": 2,
                       "source_message_refs": ["message-1", "message-2"]
                     }],
@@ -58,6 +62,12 @@ class OmniAiReturnedMessageExecutionClientTests {
             assertThat(result.result().topics().get(0).topic()).isEqualTo("제목 1");
             assertThat(result.result().topics().get(0).priority())
                     .isEqualTo(ReturnedMessageTopicsResult.Priority.UNKNOWN);
+            assertThat(result.result().topics().get(0).replyRequired()).isTrue();
+            assertThat(result.result().topics().get(0).replyReason())
+                    .isEqualTo("답변 요청이 있습니다.");
+            assertThat(result.result().topics().get(0).actionRequired()).isTrue();
+            assertThat(result.result().topics().get(0).actionReason())
+                    .isEqualTo("후속 조치 요청이 있습니다.");
             assertThat(result.result().topics().get(0).sourceMessageRefs())
                     .containsExactly("message-1", "message-2");
             assertThat(recorded.method.get()).isEqualTo("POST");

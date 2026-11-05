@@ -219,6 +219,10 @@ public class OmniAiReturnedMessageExecutionClient implements AiExecutionGateway 
             String summary,
             ReturnedMessageTopicsResult.Priority priority,
             @JsonProperty("priority_reason") String priorityReason,
+            @JsonProperty("reply_required") boolean replyRequired,
+            @JsonProperty("reply_reason") String replyReason,
+            @JsonProperty("action_required") boolean actionRequired,
+            @JsonProperty("action_reason") String actionReason,
             @JsonProperty("message_count") int messageCount,
             @JsonProperty("source_message_refs") List<String> sourceMessageRefs) {
 
@@ -228,6 +232,10 @@ public class OmniAiReturnedMessageExecutionClient implements AiExecutionGateway 
                     summary,
                     priority,
                     priorityReason,
+                    replyRequired,
+                    replyReason,
+                    actionRequired,
+                    actionReason,
                     messageCount,
                     sourceMessageRefs);
         }

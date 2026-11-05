@@ -18,6 +18,10 @@ public record ReturnedMessageTopicsResult(
             String summary,
             Priority priority,
             String priorityReason,
+            boolean replyRequired,
+            String replyReason,
+            boolean actionRequired,
+            String actionReason,
             int messageCount,
             List<String> sourceMessageRefs) {
 

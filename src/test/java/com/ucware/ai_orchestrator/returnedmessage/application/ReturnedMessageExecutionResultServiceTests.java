@@ -150,6 +150,10 @@ class ReturnedMessageExecutionResultServiceTests {
                         "요약",
                         ReturnedMessageTopicsResult.Priority.NORMAL,
                         null,
+                        true,
+                        "답변 요청이 있습니다.",
+                        true,
+                        "후속 조치 요청이 있습니다.",
                         1,
                         List.of("message-1"))),
                 NOW);

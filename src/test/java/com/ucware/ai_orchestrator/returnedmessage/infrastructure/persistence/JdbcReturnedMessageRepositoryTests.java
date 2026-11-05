@@ -150,6 +150,10 @@ class JdbcReturnedMessageRepositoryTests {
                         "요약",
                         ReturnedMessageTopicsResult.Priority.NORMAL,
                         null,
+                        true,
+                        "답변 요청이 있습니다.",
+                        true,
+                        "후속 조치 요청이 있습니다.",
                         1,
                         List.of("message-1"))),
                 Instant.parse("2026-10-28T01:00:00Z"));
