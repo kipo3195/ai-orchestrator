@@ -10,6 +10,7 @@ Returned Message Topics의 실행 후보 선정, durable lifecycle 생성, 사�
 
 - [003. Returned Message Lifecycle Persistence and Concurrency Control](../decisions/003-returned-message-lifecycle-persistence.md)
 - [004. AI Execution Dispatch, Idempotency, Cancellation and Recovery](../decisions/004-ai-execution-dispatch-idempotency-and-recovery.md)
+- `omni-ai-architecture` Decision 008. Durable Asynchronous AI Execution and Result Reconciliation
 
 ## Scope
 
@@ -19,7 +20,10 @@ Returned Message Topics의 실행 후보 선정, durable lifecycle 생성, 사�
 - YES, NO와 timeout의 경쟁 처리
 - 기능 Policy와 Permission 재평가
 - 공통 AI execution lifecycle과의 correlation
+- Omni AI terminal callback의 멱등 처리
+- callback 지연·유실을 위한 execution status reconciliation
 - AI 결과와 Realtime delivery 상태 분리
+- 저장된 result payload의 contract version 호환성과 recovery 격리
 - 만료 sweeper와 non-terminal lifecycle 복구 경계
 - 설정과 테스트 기준
 
@@ -30,7 +34,8 @@ Returned Message Topics의 실행 후보 선정, durable lifecycle 생성, 사�
 - Omni AI Server의 workflow, agent와 LLM 처리
 - Prompt와 AI 응답 생성 규칙
 - 기능별 Policy 저장과 변경 API
-- Realtime transport의 exactly-once delivery와 Outbox 선택
+- Omni AI 내부 execution Queue와 callback Outbox 구현
+- Realtime transport의 exactly-once delivery와 Client delivery Outbox 선택
 - 운영 데이터베이스 제품과 전체 migration script
 
 ## Component Boundary
@@ -142,7 +147,7 @@ Unique constraint 이름과 database exception은 Infrastructure에서 해석한
 | --- | --- | --- |
 | `DETECTED` | lifecycle 생성 완료, 메시지 선정 전 또는 복구 대기 | 아니오 |
 | `AWAITING_CONFIRMATION` | 메시지 선정 완료, 사용자 확인 대기 | 아니오 |
-| `PROCESSING` | `executionId`가 할당되고 공통 AI 실행 처리 중 | 아니오 |
+| `PROCESSING` | `executionId`가 할당되고 Omni AI 접수, 실행, callback 또는 reconciliation 대기 중 | 아니오 |
 | `DELIVERY_PENDING` | AI 실행 성공, 결과 전달 전 또는 재시도 대기 | 아니오 |
 | `SKIPPED_NO_MESSAGES` | 조건에 맞는 unread 메시지가 없음 | 예 |
 | `BLOCKED_BY_POLICY` | 재평가한 Policy 또는 Permission이 실행을 거절 | 예 |
@@ -227,15 +232,17 @@ YES는 다음 순서로 처리한다.
 → messageSelectionRef와 lifecycle owner로 유효한 선택 및 source item key 조회
 → stable executionId 생성
 → AWAITING_CONFIRMATION에서 PROCESSING으로 conditional update
-→ 전이 성공 시에만 bounded execution pool에 Omni AI 작업 등록
+→ 전이 성공 시에만 bounded dispatch pool에 Omni AI start command 등록
 → Confirmation API는 PROCESSING snapshot과 HTTP 202 Accepted 반환
 ```
+
+Confirmation API의 HTTP 202는 Client Ingress에 lifecycle이 비동기 처리 중임을 알리는 응답이다. 이후 Omni AI start API의 HTTP 202는 execution이 Omni AI에 durable하게 접수됐다는 별개의 acknowledgement다. 두 응답 모두 AI 결과 성공을 의미하지 않는다.
 
 YES 시점에는 `MSG_UNREAD`를 다시 실행하지 않는다. 최초 복귀 처리에서 확정한 source item key 집합을 사용하여 사용자가 확인한 대상과 AI 실행 대상이 달라지지 않게 한다. Client가 보낸 `messageSelectionRef`는 lifecycle에 저장된 값과 일치하는지 먼저 검증하고, selection 조회도 request, tenant, user와 absence period를 모두 조건으로 제한한다.
 
 Policy 또는 Permission이 거절되면 아직 만료되지 않은 `AWAITING_CONFIRMATION` row를 `BLOCKED_BY_POLICY`로 전이하고 AI를 호출하지 않는다. 재평가 중 NO 또는 expiration이 먼저 상태를 변경하면 YES의 conditional update는 `0`건이 되며 AI 실행을 시작하지 않는다.
 
-`PROCESSING` 전이에는 `executionId`를 함께 저장한다. Execution pool의 queue가 가득 차 작업 등록이 거절되거나 process가 종료되어도 상태를 실패로 바꾸지 않는다. 복구 worker는 저장된 동일 `executionId`와 selection으로 작업을 다시 수행한다.
+`PROCESSING` 전이에는 `executionId`를 함께 저장한다. Dispatch pool의 queue가 가득 차 작업 등록이 거절되거나 process가 종료되어도 상태를 실패로 바꾸지 않는다. 복구 worker는 저장된 동일 `executionId`로 Omni AI의 authoritative execution 상태를 먼저 조회한다. Start command 재전송은 Omni AI의 executionId 기반 멱등성이 보장되고 실행이 존재하지 않는다는 정책상 충분한 근거가 확보된 경우에만 허용한다.
 
 ## Confirmation Expiration
 
@@ -259,10 +266,12 @@ confirmation_expires_at <= DB current time
 `PROCESSING` 이후에는 [004. AI Execution Dispatch, Idempotency, Cancellation and Recovery](../decisions/004-ai-execution-dispatch-idempotency-and-recovery.md)를 따른다.
 
 - Start, retry, cancel, status query와 result는 저장된 동일 `executionId`를 사용한다.
+- Start는 Omni AI가 execution record와 durable queue 등록을 완료한 뒤 반환하는 `202 Accepted`를 정상 접수로 해석한다.
 - HTTP timeout이나 connection failure를 `FAILED` 또는 `CANCELLED`로 즉시 변환하지 않는다.
 - Dispatch 결과가 불확실하면 `PROCESSING`을 유지하고 공통 reconciliation 대상으로 등록한다.
 - Callback 또는 조회 결과는 `status = PROCESSING AND execution_id = :executionId` 조건으로 반영한다.
 - 다른 ID의 결과와 terminal 상태 이후 도착한 stale 결과는 상태를 변경하지 않는다.
+- 조회의 단일 404를 즉시 start 재전송으로 연결하지 않고 visibility grace, backoff와 reconciliation deadline을 적용한다.
 
 공통 실행 결과를 Returned Message lifecycle에 다음과 같이 반영한다.
 
@@ -275,6 +284,38 @@ confirmation_expires_at <= DB current time
 
 Omni AI Server의 세부 workflow state를 Returned Message lifecycle에 복제하지 않는다.
 
+### Dispatch observation
+
+| Omni AI start 관찰 결과 | Orchestrator 처리 |
+| --- | --- |
+| HTTP 202 `ACCEPTED` | `PROCESSING` 유지, callback 대기와 reconciliation 예약 |
+| 명시적 400/422 validation rejection | `FAILED`, `failureStage=AI_EXECUTION` |
+| immutable request fingerprint conflict | correlation 계약 위반으로 `FAILED` |
+| timeout, connection failure, 408/429/5xx | 접수 여부 불확실, `PROCESSING` 유지 후 status reconciliation |
+
+Start HTTP client timeout은 LLM 실행 최대 시간에 맞추지 않는다. Start endpoint는 durable 접수까지만 수행하고 짧은 service-to-service timeout 안에 202를 반환해야 한다.
+
+## Execution Result Callback
+
+Omni AI Server는 terminal result와 callback outbox event를 자신의 local transaction에 먼저 저장한 뒤 Returned Message execution result endpoint를 호출한다.
+
+```text
+POST /api/v1/returned-messages/{requestId}/execution-results
+```
+
+Callback handler는 다음 순서로 처리한다.
+
+1. 서비스 인증과 tenant scope를 검증한다.
+2. URL의 request ID, callback의 tenant/user와 저장된 lifecycle owner를 비교한다.
+3. `executionId`, task type과 contract version을 검증한다.
+4. 성공 결과의 v2 불변조건과 모든 source message reference를 검증한다.
+5. `status = PROCESSING AND execution_id = :executionId` conditional update로 결과를 반영한다.
+6. 결과가 durable하게 저장됐거나 동일 terminal 결과가 이미 반영된 경우에만 2xx acknowledgement를 반환한다.
+
+Callback은 at-least-once로 중복 도착할 수 있다. 같은 callback event 또는 같은 terminal execution 결과를 다시 받아도 Client delivery를 새로 생성하지 않는다. 다른 executionId, 다른 owner 또는 이미 확정된 결과와 충돌하는 payload는 기존 lifecycle을 변경하지 않고 RFC 9457 Problem Details로 거절한다.
+
+Callback과 polling 결과는 모두 `HandleReturnedMessageExecutionResult`를 사용해 상태 전이 규칙을 공유한다. 한 경로가 먼저 `PROCESSING`을 종료하면 늦게 도착한 다른 경로는 현재 snapshot을 반환한다.
+
 ## Result Delivery
 
 `DELIVERY_PENDING`은 AI 실행이 이미 성공했다는 뜻이다. AI Orchestrator는 Topic 결과를 `result_payload` JSON snapshot으로 lifecycle DB에 먼저 저장하고, lifecycle request ID, `executionId`와 안정적인 delivery correlation을 사용해 bounded delivery pool에 작업을 등록한다.
@@ -283,7 +324,7 @@ Omni AI Server의 세부 workflow state를 Returned Message lifecycle에 복제�
 - 복구 불가능하거나 허용된 retry를 모두 소진한 실패: `DELIVERY_PENDING → DELIVERY_FAILED`
 - Timeout처럼 결과가 불확실하면 같은 delivery correlation으로 상태를 확인하거나 delivery만 재시도한다.
 
-`ReturnedMessageResultSender`는 결과 전달 transport의 application port다. 현재 adapter가 결과 payload를 전달하며, 추후 NATS adapter도 같은 port를 구현한다. Delivery pool의 queue가 가득 차거나 일시적인 전송 실패가 발생하면 `DELIVERY_PENDING`을 유지하고 recovery worker가 저장된 payload로 delivery만 재시도한다. Delivery retry는 Omni AI command를 다시 호출하지 않는다.
+`ReturnedMessageResultSender`는 결과 전달 transport의 application port다. 실제 adapter는 아직 공통 Result Router와 연결되지 않았고 fallback은 retryable failure를 반환한다. REST 또는 추후 NATS adapter는 같은 port를 구현해야 한다. Delivery pool의 queue가 가득 차거나 일시적인 전송 실패가 발생하면 `DELIVERY_PENDING`을 유지하고 recovery worker가 저장된 payload로 delivery만 재시도한다. Delivery retry는 Omni AI command를 다시 호출하지 않는다.
 
 ## Recovery
 
@@ -293,10 +334,46 @@ Non-terminal lifecycle은 상태별로 복구한다.
 | --- | --- |
 | `DETECTED` | 메시지 선정 작업을 conditional claim 후 재개 |
 | `AWAITING_CONFIRMATION` | Client confirmation 응답 대기와 만료 처리 |
-| `PROCESSING` | 공통 AI execution reconciliation 수행 |
+| `PROCESSING` | callback 대기 기한이 지난 execution에 대해 Omni AI status reconciliation 수행 |
 | `DELIVERY_PENDING` | 저장된 result correlation으로 delivery만 재개 |
 
 복구 worker의 claim에는 owner token과 유한한 lease를 사용하고 DB conditional update로 획득한다. Lease는 외부 작업의 완료를 의미하지 않으며, 만료된 claim을 다른 instance가 인계할 수 있게 한다. 외부 호출 중 DB transaction이나 row lock을 유지하지 않는다.
+
+`PROCESSING` lifecycle은 최소한 다음 reconciliation metadata를 관리한다.
+
+```text
+next_reconcile_at
+reconcile_attempt_count
+last_reconciled_at
+reconcile_deadline
+last_observed_execution_status
+```
+
+Recovery worker는 `next_reconcile_at <= DB current time`인 row만 claim하고 status query 결과를 다음과 같이 처리한다.
+
+| Status query 결과 | 처리 |
+| --- | --- |
+| `ACCEPTED`, `RUNNING` | `PROCESSING` 유지, backoff와 jitter로 다음 조회 예약 |
+| `SUCCEEDED` | callback과 같은 result handler로 `DELIVERY_PENDING` 전이 |
+| `FAILED` | `FAILED`, `failureStage=AI_EXECUTION` |
+| `CANCELLED` | `CANCELLED` |
+| timeout, 408/429/5xx | 상태를 추정하지 않고 다음 조회 예약 |
+| 404 | visibility grace 동안 재조회하고 단일 404로 start를 재호출하지 않음 |
+
+Reconciliation deadline을 초과해도 실행이 존재하지 않았다고 단정하지 않는다. 운영상 unresolved failure reason과 수동 확인 대상으로 전환하는 정책을 별도로 정의하고, 자동으로 새로운 executionId를 발급하지 않는다.
+
+Recovery query는 하나의 손상된 row가 batch 전체를 중단시키지 않게 해야 한다. Row별 역직렬화 실패를 격리하고 request ID, execution ID와 안전한 오류 유형을 기록한 뒤 다른 lifecycle의 복구를 계속한다.
+
+## Result Payload Contract Compatibility
+
+`result_payload`는 Client delivery를 재개할 수 있는 immutable result snapshot이다. 저장 payload에는 최소한 task contract version을 함께 관리하거나 lifecycle의 별도 column으로 기록해 reader가 schema를 선택할 수 있어야 한다.
+
+- `PROCESSING`에서는 `result_payload`가 없어도 정상이다.
+- `DELIVERY_PENDING`에서는 현재 contract로 읽을 수 있는 terminal result가 필수다.
+- Returned Message Topics v2에서는 `topics`와 `messageAssessments`가 모두 필수다.
+- v1 payload를 v2 record로 직접 역직렬화하지 않고 migration 또는 명시적인 legacy reader를 사용한다.
+- 지원하지 않는 version과 malformed payload는 NPE가 아니라 안전한 persistence failure로 분류한다.
+- Schema 변경 배포 전에 non-terminal row와 pending delivery payload의 migration 또는 drain 계획을 수립한다.
 
 Message Query처럼 읽기 전용 작업은 재실행될 수 있다. Result delivery처럼 side effect가 있는 작업은 stable correlation을 사용한다. 외부 서비스가 idempotency 또는 상태 조회를 제공하지 않는 경우 정확히 한 번 전달을 주장하지 않는다.
 
@@ -335,6 +412,9 @@ returned-message.confirmation-timeout=2m
 returned-message.expiration-sweep-interval=30s
 returned-message.expiration-batch-size=100
 returned-message.recovery-claim-duration=30s
+returned-message.reconciliation.initial-delay=10s
+returned-message.reconciliation.max-delay=5m
+returned-message.reconciliation.deadline=30m
 returned-message.async.execution-pool-size=4
 returned-message.async.delivery-pool-size=2
 returned-message.async.queue-capacity=100
@@ -346,6 +426,8 @@ returned-message.async.queue-capacity=100
 - Confirmation timeout은 client UX와 전체 요청 lifecycle 요구를 기준으로 정한다.
 - Claim duration은 외부 client timeout보다 길게 잡는 값이 아니라 작업 인계 주기와 heartbeat 여부를 함께 고려한다.
 - AI execution reconciliation backoff와 retry 설정은 공통 execution configuration에서 관리한다.
+- Backoff에는 jitter를 적용하고 callback 정상 도착보다 polling이 먼저 과도하게 실행되지 않도록 initial delay를 둔다.
+- 위 reconciliation 값은 계약 예시이며 실제 기본값은 LLM latency와 운영 SLO를 측정해 확정한다.
 
 ## Testing
 
@@ -362,6 +444,11 @@ returned-message.async.queue-capacity=100
 - 만료 시각 이후 YES와 NO는 AI 실행을 시작하지 않는다.
 - Policy 재평가 중 NO 또는 expiration이 먼저 성공하면 AI를 호출하지 않는다.
 - AI result의 `executionId`가 다르면 lifecycle을 변경하지 않는다.
+- Callback 중복과 callback/polling 경쟁에서 하나의 terminal 전이만 성공한다.
+- Callback 결과가 durable하게 저장되기 전에는 성공 acknowledgement를 반환하지 않는다.
+- Start timeout은 `PROCESSING`을 유지하고 status query 대상으로 남긴다.
+- `ACCEPTED`와 `RUNNING` 조회는 backoff 후 다시 조회한다.
+- 단일 404가 start command 재전송으로 이어지지 않는다.
 - Delivery 실패가 AI 재실행으로 이어지지 않는다.
 
 ### Persistence integration
@@ -371,6 +458,8 @@ returned-message.async.queue-capacity=100
 - DB 현재 시각을 기준으로 expiration 경계가 일관되게 처리된다.
 - Sweeper가 batch로 만료시키고 이미 전이된 row를 변경하지 않는다.
 - Tenant 조건 없는 lifecycle 조회 또는 update가 존재하지 않는다.
+- v1 result payload migration 또는 legacy reader가 v2 배포 후 non-terminal recovery를 차단하지 않는다.
+- Malformed result payload 하나가 같은 recovery batch의 다른 lifecycle 처리를 차단하지 않는다.
 
 ### API and messaging
 
@@ -378,14 +467,18 @@ returned-message.async.queue-capacity=100
 - 계약 충돌과 접근 거절은 lifecycle 정보를 노출하지 않는다.
 - REST 오류는 status, `application/problem+json`과 required Problem Details field를 검증한다.
 - Callback과 result event의 duplicate 및 out-of-order delivery를 검증한다.
+- Omni callback 2xx acknowledgement와 RFC 9457 오류 응답을 검증한다.
+- Callback 미수신 시 status query로 terminal result가 복구되는 E2E 경로를 검증한다.
 
 실제 시간이 흐르기를 기다리는 테스트 대신 주입 가능한 시간 경계 또는 DB test clock 전략을 사용한다. DB `CURRENT_TIMESTAMP` 동작을 검증해야 하는 경우 JDBC integration test로 확인한다.
 
 ## Known Limitations
 
-- Omni AI Server가 Decision 004의 idempotent start/cancel과 status query 계약을 제공해야 end-to-end recovery를 완성할 수 있다.
+- Omni AI Server가 durable async start, idempotent execution, status query와 callback outbox 계약을 제공해야 end-to-end recovery를 완성할 수 있다.
+- 현재 동기 generate endpoint와 status 404 즉시 redispatch 구현은 목표 계약과 일치하지 않는다.
+- 기존 v1 `result_payload`는 v2 domain 배포 전에 migration 또는 호환 reader가 필요하다.
 - Realtime Service가 idempotency key를 지원하지 않으면 confirmation 또는 result가 중복 전달될 수 있다.
-- Delivery exactly-once와 Outbox 도입 여부는 아직 결정하지 않았다.
+- Client result delivery의 exactly-once와 delivery Outbox 도입 여부는 아직 결정하지 않았다.
 - 운영 retry 횟수, reconciliation backoff와 retention 기간은 배포 요구를 바탕으로 확정해야 한다.
 - Policy와 Permission이 확인 후 외부 실행 직전에 다시 변경되는 짧은 race를 완전히 제거하려면 정책 version 또는 authorization token 계약이 추가로 필요하다.
 

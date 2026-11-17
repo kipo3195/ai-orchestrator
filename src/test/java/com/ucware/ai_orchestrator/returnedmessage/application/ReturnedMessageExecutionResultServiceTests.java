@@ -148,14 +148,15 @@ class ReturnedMessageExecutionResultServiceTests {
                 List.of(new ReturnedMessageTopicsResult.Topic(
                         "제목 1",
                         "요약",
+                        List.of("message-1"))),
+                List.of(new ReturnedMessageTopicsResult.MessageAssessment(
+                        "message-1",
                         ReturnedMessageTopicsResult.Priority.NORMAL,
                         null,
                         true,
                         "답변 요청이 있습니다.",
                         true,
-                        "후속 조치 요청이 있습니다.",
-                        1,
-                        List.of("message-1"))),
+                        "후속 조치 요청이 있습니다.")),
                 NOW);
     }
 }

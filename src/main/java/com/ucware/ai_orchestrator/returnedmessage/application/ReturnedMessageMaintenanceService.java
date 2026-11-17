@@ -20,7 +20,6 @@ public class ReturnedMessageMaintenanceService {
 
     private final ReturnedMessageRepository repository;
     private final ReturnedMessageTriggerService triggerService;
-    private final ReturnedMessageConfirmationService confirmationService;
     private final ReturnedMessageExecutionResultService resultService;
     private final AiExecutionGateway executionGateway;
     private final ReturnedMessageProperties properties;
@@ -29,13 +28,11 @@ public class ReturnedMessageMaintenanceService {
     public ReturnedMessageMaintenanceService(
             ReturnedMessageRepository repository,
             ReturnedMessageTriggerService triggerService,
-            ReturnedMessageConfirmationService confirmationService,
             ReturnedMessageExecutionResultService resultService,
             AiExecutionGateway executionGateway,
             ReturnedMessageProperties properties) {
         this.repository = repository;
         this.triggerService = triggerService;
-        this.confirmationService = confirmationService;
         this.resultService = resultService;
         this.executionGateway = executionGateway;
         this.properties = properties;
@@ -90,7 +87,10 @@ public class ReturnedMessageMaintenanceService {
         AiExecutionGateway.ExecutionResult result = executionGateway.reconcile(
                 lifecycle.tenantId(), lifecycle.executionId());
         if (result.status() == AiExecutionGateway.Status.NOT_FOUND) {
-            confirmationService.redispatch(lifecycle);
+            logger.warn(
+                    "Returned Message AI execution is not visible yet. "
+                            + "requestId={}, executionId={}",
+                    lifecycle.requestId(), lifecycle.executionId());
             return;
         }
         resultService.handle(

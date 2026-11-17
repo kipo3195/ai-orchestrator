@@ -6,33 +6,39 @@ import java.util.Objects;
 
 public record ReturnedMessageTopicsResult(
         List<Topic> topics,
+        List<MessageAssessment> messageAssessments,
         Instant generatedAt) {
 
     public ReturnedMessageTopicsResult {
         topics = List.copyOf(Objects.requireNonNull(topics));
+        messageAssessments = List.copyOf(Objects.requireNonNull(messageAssessments));
         Objects.requireNonNull(generatedAt);
     }
 
     public record Topic(
             String topic,
             String summary,
-            Priority priority,
-            String priorityReason,
-            boolean replyRequired,
-            String replyReason,
-            boolean actionRequired,
-            String actionReason,
-            int messageCount,
             List<String> sourceMessageRefs) {
 
         public Topic {
             Objects.requireNonNull(topic);
             Objects.requireNonNull(summary);
-            Objects.requireNonNull(priority);
             sourceMessageRefs = List.copyOf(Objects.requireNonNull(sourceMessageRefs));
-            if (messageCount < 1) {
-                throw new IllegalArgumentException("messageCount must be positive");
-            }
+        }
+    }
+
+    public record MessageAssessment(
+            String messageRef,
+            Priority priority,
+            String priorityReason,
+            boolean replyRequired,
+            String replyReason,
+            boolean actionRequired,
+            String actionReason) {
+
+        public MessageAssessment {
+            Objects.requireNonNull(messageRef);
+            Objects.requireNonNull(priority);
         }
     }
 

@@ -28,26 +28,55 @@ class OmniAiReturnedMessageExecutionClientTests {
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Test
+    void acceptsDurableAsyncExecution() throws Exception {
+        HttpServer server = server(202, """
+                {
+                  "execution_id": "execution-1",
+                  "task_type": "RETURNED_MESSAGE_TOPICS",
+                  "contract_version": 2,
+                  "status": "ACCEPTED"
+                }
+                """, new RecordedRequest());
+
+        try {
+            assertThat(client(server).start(command()))
+                    .isEqualTo(AiExecutionGateway.ExecutionResult.accepted());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void startsExecutionWithCommonEnvelopeAndMapsTopicResult() throws Exception {
         RecordedRequest recorded = new RecordedRequest();
         HttpServer server = server(200, """
                 {
                   "execution_id": "execution-1",
                   "task_type": "RETURNED_MESSAGE_TOPICS",
-                  "contract_version": 1,
+                  "contract_version": 2,
                   "status": "SUCCEEDED",
                   "result": {
                     "topics": [{
                       "topic": "제목 1",
                       "summary": "요약",
+                      "source_message_refs": ["message-1", "message-2"]
+                    }],
+                    "message_assessments": [{
+                      "message_ref": "message-1",
                       "priority": "UNKNOWN",
                       "priority_reason": "제목만으로 우선순위를 판단하기 어렵습니다.",
                       "reply_required": true,
                       "reply_reason": "답변 요청이 있습니다.",
                       "action_required": true,
-                      "action_reason": "후속 조치 요청이 있습니다.",
-                      "message_count": 2,
-                      "source_message_refs": ["message-1", "message-2"]
+                      "action_reason": "후속 조치 요청이 있습니다."
+                    }, {
+                      "message_ref": "message-2",
+                      "priority": "NORMAL",
+                      "priority_reason": "정보 공유",
+                      "reply_required": false,
+                      "reply_reason": "명시적인 회신 요청 없음",
+                      "action_required": false,
+                      "action_reason": "명시적인 작업 요청 없음"
                     }],
                     "generated_at": "2026-10-28T01:00:00Z"
                   }
@@ -60,16 +89,19 @@ class OmniAiReturnedMessageExecutionClientTests {
             assertThat(result.status()).isEqualTo(AiExecutionGateway.Status.SUCCEEDED);
             assertThat(result.result().topics()).hasSize(1);
             assertThat(result.result().topics().get(0).topic()).isEqualTo("제목 1");
-            assertThat(result.result().topics().get(0).priority())
-                    .isEqualTo(ReturnedMessageTopicsResult.Priority.UNKNOWN);
-            assertThat(result.result().topics().get(0).replyRequired()).isTrue();
-            assertThat(result.result().topics().get(0).replyReason())
-                    .isEqualTo("답변 요청이 있습니다.");
-            assertThat(result.result().topics().get(0).actionRequired()).isTrue();
-            assertThat(result.result().topics().get(0).actionReason())
-                    .isEqualTo("후속 조치 요청이 있습니다.");
             assertThat(result.result().topics().get(0).sourceMessageRefs())
                     .containsExactly("message-1", "message-2");
+            assertThat(result.result().messageAssessments()).hasSize(2);
+            assertThat(result.result().messageAssessments().get(0).messageRef())
+                    .isEqualTo("message-1");
+            assertThat(result.result().messageAssessments().get(0).priority())
+                    .isEqualTo(ReturnedMessageTopicsResult.Priority.UNKNOWN);
+            assertThat(result.result().messageAssessments().get(0).replyRequired()).isTrue();
+            assertThat(result.result().messageAssessments().get(0).replyReason())
+                    .isEqualTo("답변 요청이 있습니다.");
+            assertThat(result.result().messageAssessments().get(0).actionRequired()).isTrue();
+            assertThat(result.result().messageAssessments().get(0).actionReason())
+                    .isEqualTo("후속 조치 요청이 있습니다.");
             assertThat(recorded.method.get()).isEqualTo("POST");
             assertThat(recorded.path.get())
                     .isEqualTo("/ai/v1/returned-message-topics/generate");
@@ -82,7 +114,7 @@ class OmniAiReturnedMessageExecutionClientTests {
             assertThat(body.get("execution_id").asText()).isEqualTo("execution-1");
             assertThat(body.get("tenant_id").asText()).isEqualTo("tenant-1");
             assertThat(body.get("task_type").asText()).isEqualTo("RETURNED_MESSAGE_TOPICS");
-            assertThat(body.get("contract_version").asInt()).isEqualTo(1);
+            assertThat(body.get("contract_version").asInt()).isEqualTo(2);
             JsonNode input = body.get("input");
             assertThat(input.get("request_id").asText()).isEqualTo("request-1");
             assertThat(input.get("user_id").asText()).isEqualTo("user-1");
@@ -112,10 +144,11 @@ class OmniAiReturnedMessageExecutionClientTests {
                 {
                   "execution_id": "execution-1",
                   "task_type": "RETURNED_MESSAGE_TOPICS",
-                  "contract_version": 1,
+                  "contract_version": 2,
                   "status": "SUCCEEDED",
                   "result": {
                     "topics": [],
+                    "message_assessments": [],
                     "generated_at": "2026-10-28T01:00:00Z"
                   }
                 }
@@ -203,7 +236,7 @@ class OmniAiReturnedMessageExecutionClientTests {
                 {
                   "execution_id": "another-execution",
                   "task_type": "RETURNED_MESSAGE_TOPICS",
-                  "contract_version": 1,
+                  "contract_version": 2,
                   "status": "ACCEPTED"
                 }
                 """, new RecordedRequest());

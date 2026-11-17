@@ -353,17 +353,21 @@ class ReturnedMessagePolicyErrorResponseTests {
     }
 
     @Test
-    void executionResultOwnerIsReadFromRequestBody() throws Exception {
+    void executionResultAcceptsMatchingTenantScope() throws Exception {
         when(handleExecutionResult.handle(any(), any(), any(), any(), any()))
                 .thenReturn(ReturnedMessageOperationResult.rejected("test"));
 
         mockMvc.perform(post("/api/v1/returned-messages/request-1/execution-results")
+                        .header("X-Tenant-Id", "tenant-1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
+                                  "eventId": "event-1",
                                   "tenantId": "tenant-1",
                                   "userId": "user-1",
                                   "executionId": "execution-1",
+                                  "taskType": "RETURNED_MESSAGE_TOPICS",
+                                  "contractVersion": 2,
                                   "status": "FAILED",
                                   "failureReason": "AI_EXECUTION_FAILED"
                                 }
@@ -377,6 +381,62 @@ class ReturnedMessagePolicyErrorResponseTests {
                 "execution-1",
                 new AiExecutionGateway.ExecutionResult(
                         AiExecutionGateway.Status.FAILED, null, "AI_EXECUTION_FAILED"));
+    }
+
+    @Test
+    void executionResultRejectsUnsupportedContractWithProblemDetails() throws Exception {
+        mockMvc.perform(post("/api/v1/returned-messages/request-1/execution-results")
+                        .header("X-Tenant-Id", "tenant-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "eventId": "event-1",
+                                  "tenantId": "tenant-1",
+                                  "userId": "user-1",
+                                  "executionId": "execution-1",
+                                  "taskType": "RETURNED_MESSAGE_TOPICS",
+                                  "contractVersion": 1,
+                                  "status": "FAILED",
+                                  "failureReason": "AI_EXECUTION_FAILED"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(
+                        MediaType.parseMediaType("application/problem+json")))
+                .andExpect(jsonPath("$.title").value("Bad Request"))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.detail").value("Invalid request"));
+
+        verifyNoInteractions(handleExecutionResult);
+    }
+
+    @Test
+    void executionResultRejectsMismatchedTenantScopeWithProblemDetails()
+            throws Exception {
+        mockMvc.perform(post("/api/v1/returned-messages/request-1/execution-results")
+                        .header("X-Tenant-Id", "another-tenant")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "eventId": "event-1",
+                                  "tenantId": "tenant-1",
+                                  "userId": "user-1",
+                                  "executionId": "execution-1",
+                                  "taskType": "RETURNED_MESSAGE_TOPICS",
+                                  "contractVersion": 2,
+                                  "status": "FAILED",
+                                  "failureReason": "AI_EXECUTION_FAILED"
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(
+                        MediaType.parseMediaType("application/problem+json")))
+                .andExpect(jsonPath("$.title").value("Forbidden"))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.detail").value(
+                        "Returned Message tenant scope is not allowed"));
+
+        verifyNoInteractions(handleExecutionResult);
     }
 
     private ObjectNode validUserReturnedBody() throws Exception {

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessageContractConflictException;
+import com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessageAccessDeniedException;
 import com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessageNotFoundException;
 import com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessagePersistenceException;
 import com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessagePolicyUnavailableException;
@@ -33,6 +34,12 @@ public class ReturnedMessageExceptionHandler {
     @ExceptionHandler(ReturnedMessageContractConflictException.class)
     public ResponseEntity<ProblemDetail> conflict(ReturnedMessageContractConflictException exception) {
         return problem(HttpStatus.CONFLICT, "Returned Message correlation conflict");
+    }
+
+    @ExceptionHandler(ReturnedMessageAccessDeniedException.class)
+    public ResponseEntity<ProblemDetail> forbidden(
+            ReturnedMessageAccessDeniedException exception) {
+        return problem(HttpStatus.FORBIDDEN, "Returned Message tenant scope is not allowed");
     }
 
     @ExceptionHandler(ReturnedMessageNotFoundException.class)

@@ -107,7 +107,7 @@ public class ReturnedMessageConfirmationService implements HandleReturnedMessage
                     : ReturnedMessageOperationResult.existing(load(lifecycle));
         }
 
-        ReturnedMessageSelection selection = loadSelection(lifecycle, true);
+        ReturnedMessageSelection selection = loadSelection(lifecycle);
         String executionId = UUID.randomUUID().toString();
 
         // 비동기 작업 등록
@@ -127,10 +127,6 @@ public class ReturnedMessageConfirmationService implements HandleReturnedMessage
                     processing.requestId(), processing.executionId());
         }
         return ReturnedMessageOperationResult.updated(processing);
-    }
-
-    void redispatch(ReturnedMessageLifecycle lifecycle) {
-        dispatch(lifecycle, loadSelection(lifecycle, false));
     }
 
     private void dispatch(
@@ -172,22 +168,13 @@ public class ReturnedMessageConfirmationService implements HandleReturnedMessage
                 lifecycle.routingRef());
     }
 
-    private ReturnedMessageSelection loadSelection(
-            ReturnedMessageLifecycle lifecycle,
-            boolean activeOnly) {
-        var selection = activeOnly
-                ? selectionRepository.findOwnedActive(
-                        lifecycle.messageSelectionRef(),
-                        lifecycle.requestId(),
-                        lifecycle.tenantId(),
-                        lifecycle.userId(),
-                        lifecycle.absencePeriodId())
-                : selectionRepository.findOwned(
-                        lifecycle.messageSelectionRef(),
-                        lifecycle.requestId(),
-                        lifecycle.tenantId(),
-                        lifecycle.userId(),
-                        lifecycle.absencePeriodId());
+    private ReturnedMessageSelection loadSelection(ReturnedMessageLifecycle lifecycle) {
+        var selection = selectionRepository.findOwnedActive(
+                lifecycle.messageSelectionRef(),
+                lifecycle.requestId(),
+                lifecycle.tenantId(),
+                lifecycle.userId(),
+                lifecycle.absencePeriodId());
         ReturnedMessageSelection found = selection.orElseThrow(() ->
                 new ReturnedMessagePersistenceException(
                         "Returned Message selection is unavailable", null));

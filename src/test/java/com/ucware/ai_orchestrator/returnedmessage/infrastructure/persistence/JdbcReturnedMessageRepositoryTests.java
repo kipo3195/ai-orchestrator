@@ -143,19 +143,63 @@ class JdbcReturnedMessageRepositoryTests {
                 });
     }
 
+    @Test
+    void readsLegacyResultPayloadWithoutBreakingRecovery() {
+        repository.create(request(
+                "tenant-1", "user-1", "request-1", "trigger-1", "period-1"));
+        jdbcTemplate.update("""
+                UPDATE returned_message_request
+                SET status = 'DELIVERY_PENDING',
+                    execution_id = 'execution-1',
+                    delivery_id = 'delivery-1',
+                    result_payload = ?
+                WHERE tenant_id = 'tenant-1' AND request_id = 'request-1'
+                """, """
+                {
+                  "topics": [{
+                    "topic": "운영 점검",
+                    "summary": "확인 요청",
+                    "priority": "HIGH",
+                    "priorityReason": "기한 임박",
+                    "replyRequired": true,
+                    "replyReason": "회신 요청",
+                    "actionRequired": true,
+                    "actionReason": "확인 필요",
+                    "messageCount": 2,
+                    "sourceMessageRefs": ["message-1", "message-2"]
+                  }],
+                  "generatedAt": "2026-10-28T01:00:00Z"
+                }
+                """);
+
+        ReturnedMessageTopicsResult restored = repository.findOwned(
+                        "tenant-1", "user-1", "request-1")
+                .orElseThrow()
+                .result();
+
+        assertThat(restored.topics()).hasSize(1);
+        assertThat(restored.messageAssessments())
+                .extracting(ReturnedMessageTopicsResult.MessageAssessment::messageRef)
+                .containsExactly("message-1", "message-2");
+        assertThat(restored.messageAssessments())
+                .allMatch(assessment ->
+                        assessment.priority() == ReturnedMessageTopicsResult.Priority.HIGH);
+    }
+
     private ReturnedMessageTopicsResult result() {
         return new ReturnedMessageTopicsResult(
                 List.of(new ReturnedMessageTopicsResult.Topic(
                         "제목 1",
                         "요약",
+                        List.of("message-1"))),
+                List.of(new ReturnedMessageTopicsResult.MessageAssessment(
+                        "message-1",
                         ReturnedMessageTopicsResult.Priority.NORMAL,
                         null,
                         true,
                         "답변 요청이 있습니다.",
                         true,
-                        "후속 조치 요청이 있습니다.",
-                        1,
-                        List.of("message-1"))),
+                        "후속 조치 요청이 있습니다.")),
                 Instant.parse("2026-10-28T01:00:00Z"));
     }
 

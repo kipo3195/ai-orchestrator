@@ -14,6 +14,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -29,10 +31,12 @@ import com.ucware.ai_orchestrator.returnedmessage.infrastructure.config.Returned
         havingValue = "true")
 public class OmniAiReturnedMessageExecutionClient implements AiExecutionGateway {
 
+    private static final Logger logger = LoggerFactory.getLogger(
+            OmniAiReturnedMessageExecutionClient.class);
     private static final String TENANT_HEADER = "X-Tenant-Id";
     private static final String MEDIA_TYPE_JSON = "application/json";
     private static final String TASK_TYPE = "RETURNED_MESSAGE_TOPICS";
-    private static final int CONTRACT_VERSION = 1;
+    private static final int CONTRACT_VERSION = 2;
 
     private final ReturnedMessageAiProperties properties;
     private final ObjectMapper objectMapper;
@@ -69,6 +73,11 @@ public class OmniAiReturnedMessageExecutionClient implements AiExecutionGateway 
 
         HttpResponse<String> response = send(request, "start");
         if (response.statusCode() == 400 || response.statusCode() == 422) {
+            logger.warn(
+                    "Omni AI Returned Message request was rejected. "
+                            + "requestId={}, executionId={}, status={}, responseBody={}",
+                    command.requestId(), command.executionId(), response.statusCode(),
+                    response.body());
             return failed("AI_EXECUTION_REQUEST_INVALID");
         }
         if (response.statusCode() == 409) {
@@ -204,11 +213,16 @@ public class OmniAiReturnedMessageExecutionClient implements AiExecutionGateway 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record TopicsResultResponse(
             List<TopicResponse> topics,
+            @JsonProperty("message_assessments")
+            List<MessageAssessmentResponse> messageAssessments,
             @JsonProperty("generated_at") Instant generatedAt) {
 
         private ReturnedMessageTopicsResult toDomain() {
             return new ReturnedMessageTopicsResult(
                     topics.stream().map(TopicResponse::toDomain).toList(),
+                    messageAssessments.stream()
+                            .map(MessageAssessmentResponse::toDomain)
+                            .toList(),
                     generatedAt);
         }
     }
@@ -217,27 +231,35 @@ public class OmniAiReturnedMessageExecutionClient implements AiExecutionGateway 
     private record TopicResponse(
             String topic,
             String summary,
-            ReturnedMessageTopicsResult.Priority priority,
-            @JsonProperty("priority_reason") String priorityReason,
-            @JsonProperty("reply_required") boolean replyRequired,
-            @JsonProperty("reply_reason") String replyReason,
-            @JsonProperty("action_required") boolean actionRequired,
-            @JsonProperty("action_reason") String actionReason,
-            @JsonProperty("message_count") int messageCount,
             @JsonProperty("source_message_refs") List<String> sourceMessageRefs) {
 
         private ReturnedMessageTopicsResult.Topic toDomain() {
             return new ReturnedMessageTopicsResult.Topic(
                     topic,
                     summary,
+                    sourceMessageRefs);
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record MessageAssessmentResponse(
+            @JsonProperty("message_ref") String messageRef,
+            ReturnedMessageTopicsResult.Priority priority,
+            @JsonProperty("priority_reason") String priorityReason,
+            @JsonProperty("reply_required") boolean replyRequired,
+            @JsonProperty("reply_reason") String replyReason,
+            @JsonProperty("action_required") boolean actionRequired,
+            @JsonProperty("action_reason") String actionReason) {
+
+        private ReturnedMessageTopicsResult.MessageAssessment toDomain() {
+            return new ReturnedMessageTopicsResult.MessageAssessment(
+                    messageRef,
                     priority,
                     priorityReason,
                     replyRequired,
                     replyReason,
                     actionRequired,
-                    actionReason,
-                    messageCount,
-                    sourceMessageRefs);
+                    actionReason);
         }
     }
 

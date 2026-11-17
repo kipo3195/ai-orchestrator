@@ -10,12 +10,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ucware.ai_orchestrator.returnedmessage.application.HandleReturnedMessageConfirmation;
 import com.ucware.ai_orchestrator.returnedmessage.application.HandleReturnedMessageExecutionResult;
 import com.ucware.ai_orchestrator.returnedmessage.application.HandleUserReturned;
+import com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessageAccessDeniedException;
 import com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessageOperationResult;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGateway;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageConfirmation;
@@ -31,6 +33,9 @@ import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 @RestController
 @RequestMapping("/api/${api.version}/returned-messages")
 public class ReturnedMessageController {
+
+    private static final String RETURNED_MESSAGE_TASK_TYPE = "RETURNED_MESSAGE_TOPICS";
+    private static final int RETURNED_MESSAGE_CONTRACT_VERSION = 2;
 
     private final HandleUserReturned handleUserReturned;
     private final HandleReturnedMessageConfirmation handleConfirmation;
@@ -114,7 +119,17 @@ public class ReturnedMessageController {
     @PostMapping("/{requestId}/execution-results")
     public ResponseEntity<ReturnedMessageResponse> executionResult(
             @PathVariable String requestId,
+            @RequestHeader("X-Tenant-Id") String tenantId,
             @Valid @RequestBody ExecutionResultHttpRequest request) {
+        if (!tenantId.equals(request.tenantId())) {
+            throw new ReturnedMessageAccessDeniedException(
+                    "Returned Message callback tenant scope does not match");
+        }
+        if (!RETURNED_MESSAGE_TASK_TYPE.equals(request.taskType())
+                || request.contractVersion() != RETURNED_MESSAGE_CONTRACT_VERSION) {
+            throw new IllegalArgumentException(
+                    "Unsupported Returned Message execution result contract");
+        }
         ReturnedMessageOperationResult result = handleExecutionResult.handle(
                 request.tenantId(),
                 request.userId(),
@@ -147,9 +162,12 @@ public class ReturnedMessageController {
     }
 
     public record ExecutionResultHttpRequest(
+            @NotBlank String eventId,
             @NotBlank String tenantId,
             @NotBlank String userId,
             @NotBlank String executionId,
+            @NotBlank String taskType,
+            @NotNull Integer contractVersion,
             @NotNull AiExecutionGateway.Status status,
             ReturnedMessageTopicsResult result,
             String failureReason) {

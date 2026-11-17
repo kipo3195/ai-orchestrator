@@ -6,9 +6,12 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.dao.DataAccessException;
@@ -675,11 +678,58 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
             return null;
         }
         try {
-            return objectMapper.readValue(value, ReturnedMessageTopicsResult.class);
-        } catch (JsonProcessingException exception) {
+            JsonNode root = objectMapper.readTree(value);
+            if (root.has("messageAssessments")) {
+                return objectMapper.treeToValue(root, ReturnedMessageTopicsResult.class);
+            }
+            LegacyReturnedMessageTopicsResult legacy = objectMapper.treeToValue(
+                    root, LegacyReturnedMessageTopicsResult.class);
+            Map<String, ReturnedMessageTopicsResult.MessageAssessment> assessments =
+                    new LinkedHashMap<>();
+            List<ReturnedMessageTopicsResult.Topic> topics = legacy.topics().stream()
+                    .map(topic -> {
+                        for (String messageRef : topic.sourceMessageRefs()) {
+                            assessments.putIfAbsent(
+                                    messageRef,
+                                    new ReturnedMessageTopicsResult.MessageAssessment(
+                                            messageRef,
+                                            topic.priority(),
+                                            topic.priorityReason(),
+                                            topic.replyRequired(),
+                                            topic.replyReason(),
+                                            topic.actionRequired(),
+                                            topic.actionReason()));
+                        }
+                        return new ReturnedMessageTopicsResult.Topic(
+                                topic.topic(), topic.summary(), topic.sourceMessageRefs());
+                    })
+                    .toList();
+            return new ReturnedMessageTopicsResult(
+                    topics,
+                    List.copyOf(assessments.values()),
+                    legacy.generatedAt());
+        } catch (JsonProcessingException | RuntimeException exception) {
             throw new ReturnedMessagePersistenceException(
                     "Failed to deserialize Returned Message result", exception);
         }
+    }
+
+    private record LegacyReturnedMessageTopicsResult(
+            List<LegacyReturnedMessageTopic> topics,
+            Instant generatedAt) {
+    }
+
+    private record LegacyReturnedMessageTopic(
+            String topic,
+            String summary,
+            ReturnedMessageTopicsResult.Priority priority,
+            String priorityReason,
+            boolean replyRequired,
+            String replyReason,
+            boolean actionRequired,
+            String actionReason,
+            int messageCount,
+            List<String> sourceMessageRefs) {
     }
 
     private record LifecycleKey(String tenantId, String requestId) {
