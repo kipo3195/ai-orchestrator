@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS returned_message_request (
     execution_id VARCHAR(100),
     result_payload TEXT,
     delivery_id VARCHAR(100),
+    delivery_retry_count INTEGER NOT NULL DEFAULT 0,
     failure_stage VARCHAR(40),
     failure_reason VARCHAR(200),
     claim_owner VARCHAR(100),
@@ -62,6 +63,9 @@ CREATE TABLE IF NOT EXISTS returned_message_request (
         (status, claim_until, updated_at)
 
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE returned_message_request
+    ADD COLUMN IF NOT EXISTS delivery_retry_count INTEGER NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS returned_message_selection (
     selection_ref VARCHAR(36) NOT NULL,

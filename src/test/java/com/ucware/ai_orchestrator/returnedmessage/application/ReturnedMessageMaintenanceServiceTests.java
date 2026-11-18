@@ -68,6 +68,7 @@ class ReturnedMessageMaintenanceServiceTests {
                 Duration.ofMinutes(5),
                 Duration.ofSeconds(30),
                 10,
+                1,
                 Duration.ofSeconds(30),
                 Duration.ofSeconds(30),
                 10);

@@ -24,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
 import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.LifecycleCreationResult;
+import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository.DeliveryRetryResult;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageFailureStage;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageRequest;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageStatus;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsResult;
@@ -141,6 +143,70 @@ class JdbcReturnedMessageRepositoryTests {
                     assertThat(lifecycle.status()).isEqualTo(ReturnedMessageStatus.COMPLETED);
                     assertThat(lifecycle.result()).isEqualTo(result());
                 });
+    }
+
+    @Test
+    void retryableDeliveryFailureAllowsOneRetryThenFailsDelivery() {
+        moveToDeliveryPending("request-1", "trigger-1", "period-1");
+
+        assertThat(repository.recordRetryableDeliveryFailure(
+                "tenant-1", "request-1", "execution-1", "delivery-1", 1,
+                "RESULT_DELIVERY_RETRIES_EXHAUSTED"))
+                .isEqualTo(DeliveryRetryResult.RETRY_SCHEDULED);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT delivery_retry_count
+                FROM returned_message_request
+                WHERE tenant_id = 'tenant-1' AND request_id = 'request-1'
+                """, Integer.class)).isEqualTo(1);
+        assertThat(repository.findOwned("tenant-1", "user-1", "request-1"))
+                .get().extracting(lifecycle -> lifecycle.status())
+                .isEqualTo(ReturnedMessageStatus.DELIVERY_PENDING);
+
+        assertThat(repository.recordRetryableDeliveryFailure(
+                "tenant-1", "request-1", "execution-1", "delivery-1", 1,
+                "RESULT_DELIVERY_RETRIES_EXHAUSTED"))
+                .isEqualTo(DeliveryRetryResult.RETRIES_EXHAUSTED);
+        assertThat(repository.findOwned("tenant-1", "user-1", "request-1"))
+                .get().satisfies(lifecycle -> {
+                    assertThat(lifecycle.status())
+                            .isEqualTo(ReturnedMessageStatus.DELIVERY_FAILED);
+                    assertThat(lifecycle.failureStage())
+                            .isEqualTo(ReturnedMessageFailureStage.DELIVERY);
+                    assertThat(lifecycle.failureReason())
+                            .isEqualTo("RESULT_DELIVERY_RETRIES_EXHAUSTED");
+                });
+    }
+
+    @Test
+    void zeroRetriesFailsOnInitialDeliveryFailure() {
+        moveToDeliveryPending("request-1", "trigger-1", "period-1");
+
+        assertThat(repository.recordRetryableDeliveryFailure(
+                "tenant-1", "request-1", "execution-1", "delivery-1", 0,
+                "RESULT_DELIVERY_RETRIES_EXHAUSTED"))
+                .isEqualTo(DeliveryRetryResult.RETRIES_EXHAUSTED);
+        assertThat(repository.findOwned("tenant-1", "user-1", "request-1"))
+                .get().extracting(lifecycle -> lifecycle.status())
+                .isEqualTo(ReturnedMessageStatus.DELIVERY_FAILED);
+    }
+
+    @Test
+    void retryableDeliveryFailureRequiresMatchingCorrelation() {
+        moveToDeliveryPending("request-1", "trigger-1", "period-1");
+
+        assertThat(repository.recordRetryableDeliveryFailure(
+                "tenant-1", "request-1", "stale-execution", "delivery-1", 1,
+                "RESULT_DELIVERY_RETRIES_EXHAUSTED"))
+                .isEqualTo(DeliveryRetryResult.NOT_UPDATED);
+        assertThat(repository.recordRetryableDeliveryFailure(
+                "tenant-1", "request-1", "execution-1", "stale-delivery", 1,
+                "RESULT_DELIVERY_RETRIES_EXHAUSTED"))
+                .isEqualTo(DeliveryRetryResult.NOT_UPDATED);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT delivery_retry_count
+                FROM returned_message_request
+                WHERE tenant_id = 'tenant-1' AND request_id = 'request-1'
+                """, Integer.class)).isZero();
     }
 
     @Test
@@ -281,6 +347,20 @@ class JdbcReturnedMessageRepositoryTests {
         } catch (Exception exception) {
             throw new AssertionError(exception);
         }
+    }
+
+    private void moveToDeliveryPending(
+            String requestId, String triggerId, String absencePeriodId) {
+        repository.create(request(
+                "tenant-1", "user-1", requestId, triggerId, absencePeriodId));
+        Instant now = repository.currentTime();
+        repository.awaitConfirmation(
+                "tenant-1", requestId, "selection-1", 1,
+                now, now.plusSeconds(600), "confirmation-1", Duration.ofMinutes(2));
+        repository.startProcessing(
+                "tenant-1", "user-1", requestId, "confirmation-1", "execution-1");
+        repository.executionSucceeded(
+                "tenant-1", requestId, "execution-1", result(), "delivery-1");
     }
 
     private ReturnedMessageRequest request(

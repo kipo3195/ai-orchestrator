@@ -89,6 +89,14 @@ public interface ReturnedMessageRepository {
             String deliveryId,
             String safeReason);
 
+    DeliveryRetryResult recordRetryableDeliveryFailure(
+            String tenantId,
+            String requestId,
+            String executionId,
+            String deliveryId,
+            int maxRetries,
+            String safeReason);
+
     List<ReturnedMessageLifecycle> findRecoverable(int batchSize);
 
     boolean tryClaim(
@@ -98,4 +106,10 @@ public interface ReturnedMessageRepository {
             Duration leaseDuration);
 
     void releaseClaim(String tenantId, String requestId, String ownerToken);
+
+    enum DeliveryRetryResult {
+        RETRY_SCHEDULED,
+        RETRIES_EXHAUSTED,
+        NOT_UPDATED
+    }
 }

@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS returned_message_request (
     execution_id VARCHAR(100),
     result_payload TEXT,
     delivery_id VARCHAR(100),
+    delivery_retry_count INTEGER NOT NULL DEFAULT 0,
     failure_stage VARCHAR(40),
     failure_reason VARCHAR(200),
     claim_owner VARCHAR(100),
@@ -50,6 +51,9 @@ CREATE TABLE IF NOT EXISTS returned_message_request (
     CONSTRAINT uq_returned_message_trigger
         UNIQUE (tenant_id, trigger_id)
 );
+
+ALTER TABLE returned_message_request
+    ADD COLUMN IF NOT EXISTS delivery_retry_count INTEGER NOT NULL DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS idx_returned_message_expiration
     ON returned_message_request (status, confirmation_expires_at);

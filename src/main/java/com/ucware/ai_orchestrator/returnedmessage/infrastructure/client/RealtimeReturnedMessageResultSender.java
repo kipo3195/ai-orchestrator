@@ -35,8 +35,10 @@ public class RealtimeReturnedMessageResultSender implements ReturnedMessageResul
             return DeliveryOutcome.DELIVERED;
         } catch (ResultRoutingException exception) {
             logger.warn(
-                    "Returned Message realtime delivery is retryable. requestId={}, executionId={}, deliveryId={}",
-                    command.requestId(), command.executionId(), command.deliveryId(), exception);
+                    "Returned Message realtime delivery is retryable. "
+                            + "requestId={}, executionId={}, deliveryId={}, reason={}",
+                    command.requestId(), command.executionId(), command.deliveryId(),
+                    exception.getMessage());
             return DeliveryOutcome.RETRYABLE_FAILURE;
         }
     }

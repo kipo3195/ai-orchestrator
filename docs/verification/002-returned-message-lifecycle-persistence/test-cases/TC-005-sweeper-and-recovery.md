@@ -61,6 +61,7 @@
 4. 두 recovery worker가 같은 row claim을 동시에 시도한다.
 5. 유효 claim과 만료 claim에서 다른 owner가 인계를 시도한다.
 6. 각 상태별로 저장된 correlation을 사용해 복구 동작을 재개한다.
+7. Delivery 최대 재시도를 `1`과 `0`으로 각각 설정하고 retryable delivery 실패를 발생시킨다.
 
 ## Expected Results — Then
 
@@ -72,6 +73,9 @@
 6. 같은 recovery claim은 한 worker만 획득하고 유효 lease 동안 다른 worker가 외부 작업을 시작하지 않는다.
 7. lease가 만료되면 다른 worker가 conditional claim으로 인계할 수 있다.
 8. 복구는 기존 selection, confirmation, execution 또는 delivery correlation을 유지하며 새 lifecycle이나 correlation을 만들지 않는다.
+9. Delivery 최대 재시도 `1`에서는 최초 실패 후 한 번만 재시도하고 다시 실패하면 `DELIVERY_FAILED`로 전이한다.
+10. Delivery 최대 재시도 `0`에서는 최초 retryable 실패를 즉시 `DELIVERY_FAILED`로 전이한다.
+11. `delivery_retry_count`는 DB에 저장되어 process 재시작 후에도 같은 한도를 적용한다.
 
 ## Review
 
@@ -86,6 +90,8 @@
 |---|---|---|
 | TBD | expiration batch and concurrent sweeper tests | Then 1~4 |
 | TBD | restart discovery and recovery claim tests | Then 5~8 |
+| `JdbcReturnedMessageRepositoryTests` | `retryableDeliveryFailureAllowsOneRetryThenFailsDelivery`, `zeroRetriesFailsOnInitialDeliveryFailure` | Then 9~10과 DB 카운터 저장 |
+| TBD | process 재시작 후 delivery retry count 복구 테스트 | Then 11 |
 
 ## Execution Command
 

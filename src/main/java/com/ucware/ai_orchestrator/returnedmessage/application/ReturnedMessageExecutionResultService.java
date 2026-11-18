@@ -9,9 +9,11 @@ import org.springframework.stereotype.Service;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGateway;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageAsyncTaskExecutor;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository;
+import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository.DeliveryRetryResult;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageResultSender;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageFailureStage;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageLifecycle;
+import com.ucware.ai_orchestrator.returnedmessage.infrastructure.config.ReturnedMessageProperties;
 
 @Service
 public class ReturnedMessageExecutionResultService
@@ -23,14 +25,17 @@ public class ReturnedMessageExecutionResultService
     private final ReturnedMessageRepository repository;
     private final ReturnedMessageResultSender resultSender;
     private final ReturnedMessageAsyncTaskExecutor asyncTaskExecutor;
+    private final ReturnedMessageProperties properties;
 
     public ReturnedMessageExecutionResultService(
             ReturnedMessageRepository repository,
             ReturnedMessageResultSender resultSender,
-            ReturnedMessageAsyncTaskExecutor asyncTaskExecutor) {
+            ReturnedMessageAsyncTaskExecutor asyncTaskExecutor,
+            ReturnedMessageProperties properties) {
         this.repository = repository;
         this.resultSender = resultSender;
         this.asyncTaskExecutor = asyncTaskExecutor;
+        this.properties = properties;
     }
 
     @Override
@@ -133,6 +138,19 @@ public class ReturnedMessageExecutionResultService
                         lifecycle.tenantId(), lifecycle.requestId(),
                         lifecycle.executionId(), lifecycle.deliveryId(),
                         "RESULT_DELIVERY_FAILED");
+            } else if (outcome == ReturnedMessageResultSender.DeliveryOutcome.RETRYABLE_FAILURE) {
+                DeliveryRetryResult retryResult = repository.recordRetryableDeliveryFailure(
+                        lifecycle.tenantId(), lifecycle.requestId(),
+                        lifecycle.executionId(), lifecycle.deliveryId(),
+                        properties.deliveryMaxRetries(),
+                        "RESULT_DELIVERY_RETRIES_EXHAUSTED");
+                if (retryResult == DeliveryRetryResult.RETRIES_EXHAUSTED) {
+                    logger.warn(
+                            "Returned Message result delivery retries exhausted. "
+                                    + "requestId={}, executionId={}, maxRetries={}",
+                            lifecycle.requestId(), lifecycle.executionId(),
+                            properties.deliveryMaxRetries());
+                }
             }
         } catch (RuntimeException exception) {
             logger.warn("Returned Message result delivery remains pending. requestId={}, executionId={}",

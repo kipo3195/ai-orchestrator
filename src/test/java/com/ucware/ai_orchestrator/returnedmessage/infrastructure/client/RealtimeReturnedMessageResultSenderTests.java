@@ -13,6 +13,9 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.ucware.ai_orchestrator.result.application.AiResultRouter;
 import com.ucware.ai_orchestrator.result.application.port.RealtimeConnectionResolver;
@@ -24,6 +27,7 @@ import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsRe
 import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
 import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 
+@ExtendWith(OutputCaptureExtension.class)
 class RealtimeReturnedMessageResultSenderTests {
 
     private static final Instant NOW = Instant.parse("2026-10-28T01:00:00Z");
@@ -70,7 +74,7 @@ class RealtimeReturnedMessageResultSenderTests {
     }
 
     @Test
-    void keepsDeliveryRetryableWhenCurrentRealtimeOwnerDoesNotExist() {
+    void keepsDeliveryRetryableWhenCurrentRealtimeOwnerDoesNotExist(CapturedOutput output) {
         RoutingRef routingRef = routingRef();
         when(connectionResolver.resolve(routingRef)).thenReturn(Optional.empty());
 
@@ -84,6 +88,9 @@ class RealtimeReturnedMessageResultSenderTests {
 
         assertThat(outcome).isEqualTo(
                 ReturnedMessageResultSender.DeliveryOutcome.RETRYABLE_FAILURE);
+        assertThat(output)
+                .contains("reason=No active realtime connection for execution execution-1")
+                .doesNotContain("ResultRoutingException:");
     }
 
     private RoutingRef routingRef() {

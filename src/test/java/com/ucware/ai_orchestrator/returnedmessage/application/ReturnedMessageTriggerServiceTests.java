@@ -54,6 +54,7 @@ class ReturnedMessageTriggerServiceTests {
                         Duration.ofMinutes(2),
                         Duration.ofSeconds(30),
                         100,
+                        1,
                         Duration.ofSeconds(30),
                         Duration.ofSeconds(30),
                         100));

@@ -324,7 +324,9 @@ Callback과 polling 결과는 모두 `HandleReturnedMessageExecutionResult`를 �
 - 복구 불가능하거나 허용된 retry를 모두 소진한 실패: `DELIVERY_PENDING → DELIVERY_FAILED`
 - Timeout처럼 결과가 불확실하면 같은 delivery correlation으로 상태를 확인하거나 delivery만 재시도한다.
 
-`ReturnedMessageResultSender`는 결과 전달 transport의 application port다. 현재 adapter는 공통 Result Router를 통해 current connection owner를 resolve하고 REST `/ai/deliveries` endpoint로 전달한다. 추후 NATS adapter도 같은 port와 delivery event 계약을 사용해야 한다. Delivery pool의 queue가 가득 차거나 current owner를 찾지 못하거나 일시적인 전송 실패가 발생하면 `DELIVERY_PENDING`을 유지하고 recovery worker가 저장된 payload로 delivery만 재시도한다. Delivery retry는 Omni AI command를 다시 호출하지 않는다.
+`ReturnedMessageResultSender`는 결과 전달 transport의 application port다. 현재 adapter는 공통 Result Router를 통해 current connection owner를 resolve하고 REST `/ai/deliveries` endpoint로 전달한다. 추후 NATS adapter도 같은 port와 delivery event 계약을 사용해야 한다. Delivery pool의 queue가 가득 차거나 current owner를 찾지 못하거나 일시적인 전송 실패가 발생하면 허용된 횟수 안에서 `DELIVERY_PENDING`을 유지하고 recovery worker가 저장된 payload로 delivery만 재시도한다. 재시도 횟수는 lifecycle DB의 `delivery_retry_count`에 저장해 process 재시작 후에도 유지한다. 허용 횟수를 모두 소진하면 `DELIVERY_FAILED`로 전이하며 Delivery retry는 Omni AI command를 다시 호출하지 않는다.
+
+`returned-message.delivery-max-retries`는 최초 전송을 제외한 추가 재시도 횟수다. 기본값 `1`은 최초 전송 실패 후 한 번 더 전달한다는 뜻이고, `0`은 최초 전송 실패를 즉시 `DELIVERY_FAILED`로 종료한다는 뜻이다. Current connection owner 부재는 예상 가능한 재시도 사유이므로 delivery adapter는 전체 예외 stack trace 대신 request, execution, delivery correlation과 안전한 reason만 WARN 한 줄로 기록한다.
 
 ## Recovery
 
@@ -411,6 +413,7 @@ returned-message.min-away-duration=5m
 returned-message.confirmation-timeout=2m
 returned-message.expiration-sweep-interval=30s
 returned-message.expiration-batch-size=100
+returned-message.delivery-max-retries=1
 returned-message.recovery-claim-duration=30s
 returned-message.reconciliation.initial-delay=10s
 returned-message.reconciliation.max-delay=5m
@@ -421,7 +424,7 @@ returned-message.async.queue-capacity=100
 ```
 
 - Duration에는 단위를 명시한다.
-- Duration과 batch size는 양수여야 한다.
+- Duration과 batch size는 양수여야 하고 delivery max retries는 0 이상이어야 한다.
 - 비동기 pool size와 queue capacity는 양수여야 하며 queue는 무제한으로 구성하지 않는다.
 - Confirmation timeout은 client UX와 전체 요청 lifecycle 요구를 기준으로 정한다.
 - Claim duration은 외부 client timeout보다 길게 잡는 값이 아니라 작업 인계 주기와 heartbeat 여부를 함께 고려한다.

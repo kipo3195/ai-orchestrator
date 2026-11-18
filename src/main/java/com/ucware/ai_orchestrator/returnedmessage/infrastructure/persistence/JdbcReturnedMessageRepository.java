@@ -26,6 +26,7 @@ import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 import com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessagePersistenceException;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.LifecycleCreationResult;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository;
+import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository.DeliveryRetryResult;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageFailureStage;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageLifecycle;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageRequest;
@@ -416,6 +417,7 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                         SET status = 'DELIVERY_PENDING',
                             result_payload = :resultPayload,
                             delivery_id = :deliveryId,
+                            delivery_retry_count = 0,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE tenant_id = :tenantId
                           AND request_id = :requestId
@@ -480,6 +482,67 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
         return correlatedStatusUpdate(
                 tenantId, requestId, executionId, "DELIVERY_PENDING", "DELIVERY_FAILED",
                 deliveryId, safeReason);
+    }
+
+    @Override
+    public DeliveryRetryResult recordRetryableDeliveryFailure(
+            String tenantId,
+            String requestId,
+            String executionId,
+            String deliveryId,
+            int maxRetries,
+            String safeReason) {
+        if (maxRetries < 0) {
+            throw new IllegalArgumentException("maxRetries must not be negative");
+        }
+
+        DeliveryRetryResult result = transactionTemplate.execute(status -> {
+            int retryScheduled = jdbcClient.sql("""
+                            UPDATE returned_message_request
+                            SET delivery_retry_count = delivery_retry_count + 1,
+                                updated_at = CURRENT_TIMESTAMP
+                            WHERE tenant_id = :tenantId
+                              AND request_id = :requestId
+                              AND status = 'DELIVERY_PENDING'
+                              AND execution_id = :executionId
+                              AND delivery_id = :deliveryId
+                              AND delivery_retry_count < :maxRetries
+                            """)
+                    .param("tenantId", tenantId)
+                    .param("requestId", requestId)
+                    .param("executionId", executionId)
+                    .param("deliveryId", deliveryId)
+                    .param("maxRetries", maxRetries)
+                    .update();
+            if (retryScheduled == 1) {
+                return DeliveryRetryResult.RETRY_SCHEDULED;
+            }
+
+            int retriesExhausted = jdbcClient.sql("""
+                            UPDATE returned_message_request
+                            SET status = 'DELIVERY_FAILED',
+                                failure_stage = 'DELIVERY',
+                                failure_reason = :failureReason,
+                                updated_at = CURRENT_TIMESTAMP
+                            WHERE tenant_id = :tenantId
+                              AND request_id = :requestId
+                              AND status = 'DELIVERY_PENDING'
+                              AND execution_id = :executionId
+                              AND delivery_id = :deliveryId
+                              AND delivery_retry_count >= :maxRetries
+                            """)
+                    .param("failureReason", safeReason)
+                    .param("tenantId", tenantId)
+                    .param("requestId", requestId)
+                    .param("executionId", executionId)
+                    .param("deliveryId", deliveryId)
+                    .param("maxRetries", maxRetries)
+                    .update();
+            return retriesExhausted == 1
+                    ? DeliveryRetryResult.RETRIES_EXHAUSTED
+                    : DeliveryRetryResult.NOT_UPDATED;
+        });
+        return result == null ? DeliveryRetryResult.NOT_UPDATED : result;
     }
 
     @Override

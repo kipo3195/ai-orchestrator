@@ -17,6 +17,7 @@ public record ReturnedMessageProperties(
         @NotNull Duration confirmationTimeout,
         @NotNull Duration expirationSweepInterval,
         @Min(1) int expirationBatchSize,
+        @Min(0) int deliveryMaxRetries,
         @NotNull Duration recoveryClaimDuration,
         @NotNull Duration recoverySweepInterval,
         @Min(1) int recoveryBatchSize) {
