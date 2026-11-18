@@ -26,7 +26,7 @@ class RestResultDeliveryClientTests {
         AtomicReference<String> requestBody = new AtomicReference<>();
         AtomicReference<String> requestPath = new AtomicReference<>();
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/internal/v1/ai-results", exchange -> {
+        server.createContext("/ai/deliveries", exchange -> {
             requestPath.set(exchange.getRequestURI().getPath());
             requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             exchange.sendResponseHeaders(204, -1);
@@ -40,7 +40,7 @@ class RestResultDeliveryClientTests {
                     new ResultRouterProperties.Delivery(
                             Map.of("realtime-2", URI.create(
                                     "http://127.0.0.1:" + server.getAddress().getPort())),
-                            "/internal/v1/ai-results",
+                            "/ai/deliveries",
                             Duration.ofSeconds(1),
                             Duration.ofSeconds(2)));
             RestResultDeliveryClient client = new RestResultDeliveryClient(
@@ -54,7 +54,7 @@ class RestResultDeliveryClientTests {
                             "execution-1", "event-1", "COMPLETED", "connection-1",
                             "user-1", null, Map.of("message", "hello")));
 
-            assertThat(requestPath.get()).isEqualTo("/internal/v1/ai-results");
+            assertThat(requestPath.get()).isEqualTo("/ai/deliveries");
             assertThat(requestBody.get()).contains(
                     "\"executionId\":\"execution-1\"",
                     "\"connectionId\":\"connection-1\"",

@@ -324,7 +324,7 @@ Callback과 polling 결과는 모두 `HandleReturnedMessageExecutionResult`를 �
 - 복구 불가능하거나 허용된 retry를 모두 소진한 실패: `DELIVERY_PENDING → DELIVERY_FAILED`
 - Timeout처럼 결과가 불확실하면 같은 delivery correlation으로 상태를 확인하거나 delivery만 재시도한다.
 
-`ReturnedMessageResultSender`는 결과 전달 transport의 application port다. 실제 adapter는 아직 공통 Result Router와 연결되지 않았고 fallback은 retryable failure를 반환한다. REST 또는 추후 NATS adapter는 같은 port를 구현해야 한다. Delivery pool의 queue가 가득 차거나 일시적인 전송 실패가 발생하면 `DELIVERY_PENDING`을 유지하고 recovery worker가 저장된 payload로 delivery만 재시도한다. Delivery retry는 Omni AI command를 다시 호출하지 않는다.
+`ReturnedMessageResultSender`는 결과 전달 transport의 application port다. 현재 adapter는 공통 Result Router를 통해 current connection owner를 resolve하고 REST `/ai/deliveries` endpoint로 전달한다. 추후 NATS adapter도 같은 port와 delivery event 계약을 사용해야 한다. Delivery pool의 queue가 가득 차거나 current owner를 찾지 못하거나 일시적인 전송 실패가 발생하면 `DELIVERY_PENDING`을 유지하고 recovery worker가 저장된 payload로 delivery만 재시도한다. Delivery retry는 Omni AI command를 다시 호출하지 않는다.
 
 ## Recovery
 

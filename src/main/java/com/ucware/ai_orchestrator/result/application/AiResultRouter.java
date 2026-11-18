@@ -27,10 +27,13 @@ public class AiResultRouter {
             throw new IllegalArgumentException("Result event does not match execution");
         }
 
-        RoutingRef routingRef = execution.getRoutingRef();
+        route(execution.getRoutingRef(), resultEvent);
+    }
+
+    public void route(RoutingRef routingRef, ResultEvent resultEvent) {
         DeliveryTarget target = connectionResolver.resolve(routingRef)
                 .orElseThrow(() -> new ResultRoutingException(
-                        "No active realtime connection for execution " + execution.getExecutionId()));
+                        "No active realtime connection for execution " + resultEvent.executionId()));
 
         DeliveryEvent deliveryEvent = new DeliveryEvent(
                 resultEvent.executionId(),
