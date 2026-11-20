@@ -51,6 +51,7 @@ public class ReturnedMessageMaintenanceService {
         if (!properties.enabled()) {
             return;
         }
+        // 복구되어야할 이벤트
         for (ReturnedMessageLifecycle lifecycle
                 : repository.findRecoverable(properties.recoveryBatchSize())) {
             if (!repository.tryClaim(

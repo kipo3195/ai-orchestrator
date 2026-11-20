@@ -146,6 +146,20 @@ class JdbcReturnedMessageRepositoryTests {
     }
 
     @Test
+    void noMessagesTransitionStoresZeroUnreadCount() {
+        repository.create(request(
+                "tenant-1", "user-1", "request-1", "trigger-1", "period-1"));
+
+        assertThat(repository.markNoMessages("tenant-1", "request-1")).isTrue();
+        assertThat(repository.findOwned("tenant-1", "user-1", "request-1"))
+                .get().satisfies(lifecycle -> {
+                    assertThat(lifecycle.status())
+                            .isEqualTo(ReturnedMessageStatus.SKIPPED_NO_MESSAGES);
+                    assertThat(lifecycle.unreadCount()).isZero();
+                });
+    }
+
+    @Test
     void retryableDeliveryFailureAllowsOneRetryThenFailsDelivery() {
         moveToDeliveryPending("request-1", "trigger-1", "period-1");
 

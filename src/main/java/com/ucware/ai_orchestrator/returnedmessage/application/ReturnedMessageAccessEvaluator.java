@@ -37,6 +37,7 @@ public class ReturnedMessageAccessEvaluator {
         return evaluate(tenantId, userId, absencePeriodId, Purpose.AI_CONTEXT, messageSelectionRef);
     }
 
+    // 정책 점검 
     private AccessDecision evaluate(
             String tenantId,
             String userId,

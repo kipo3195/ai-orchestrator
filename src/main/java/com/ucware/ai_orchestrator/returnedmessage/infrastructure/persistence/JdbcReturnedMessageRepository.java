@@ -187,7 +187,18 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
 
     @Override
     public boolean markNoMessages(String tenantId, String requestId) {
-        return updateStatus(tenantId, requestId, "DETECTED", "SKIPPED_NO_MESSAGES") == 1;
+        return jdbcClient.sql("""
+                        UPDATE returned_message_request
+                        SET status = 'SKIPPED_NO_MESSAGES',
+                            unread_count = 0,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE tenant_id = :tenantId
+                          AND request_id = :requestId
+                          AND status = 'DETECTED'
+                        """)
+                .param("tenantId", tenantId)
+                .param("requestId", requestId)
+                .update() == 1;
     }
 
     @Override

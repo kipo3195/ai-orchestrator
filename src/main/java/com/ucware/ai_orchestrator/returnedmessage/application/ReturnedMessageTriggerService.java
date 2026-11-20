@@ -43,10 +43,18 @@ public class ReturnedMessageTriggerService implements HandleUserReturned {
         validateSourceContract(request);
 
         String rejection = validateEligibility(request);
+
+        // 상태 점검
         if (rejection != null) {
+                logger.debug(
+                "Returned Message request rejected. requestId={}, absencePeriodId={}, reason={}",
+                request.requestId(),
+                request.absencePeriodId(),
+                rejection);
             return ReturnedMessageOperationResult.rejected(rejection);
         }
 
+        // 정책 점검
         var access = accessEvaluator.evaluateMessageSelection(
                 request.tenantId(), request.userId(), request.absencePeriodId());
         if (access.unavailable()) {
@@ -84,6 +92,8 @@ public class ReturnedMessageTriggerService implements HandleUserReturned {
             Instant lookbackSince = laterOf(
                     lifecycle.offlineSince(),
                     lifecycle.returnedAt().minus(properties.maxLookback()));
+
+            // 미확인 쪽지 조회 계약
             selection = messageQuery.selectUnreadMessages(new MessageSelectionQuery(
                     lifecycle.requestId(),
                     lifecycle.tenantId(),
@@ -132,6 +142,7 @@ public class ReturnedMessageTriggerService implements HandleUserReturned {
             return resultAfterTransition(lifecycle, created);
         }
 
+        // 현재 created가 false인 상황은 Test 코드에서만 동작 
         ReturnedMessageLifecycle awaiting = load(lifecycle);
         return created
                 ? ReturnedMessageOperationResult.created(awaiting)
