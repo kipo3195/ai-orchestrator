@@ -80,8 +80,8 @@ class WebSocketServiceReturnedMessageQueryClientTests {
             assertThat(objectMapper.readTree(requestBody.get())).isEqualTo(objectMapper.readTree("""
                     {
                       "sqlName": "MSG_UNREAD",
-                      "startDate": "202610200000",
-                      "endDate": "202610200100",
+                      "startDate": "202610200900",
+                      "endDate": "202610201000",
                       "searchDate": "99999999999999999",
                       "urgent": "N",
                       "keyword": "",

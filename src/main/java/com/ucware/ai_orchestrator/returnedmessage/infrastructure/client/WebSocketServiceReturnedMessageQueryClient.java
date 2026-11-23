@@ -5,7 +5,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -35,8 +35,9 @@ public class WebSocketServiceReturnedMessageQueryClient implements ReturnedMessa
     private static final String SUCCESS_RESULT_CODE = "100";
     private static final String SOURCE_SYSTEM = "WEBSOCKET_SERVICE";
     private static final String SOURCE_ITEM_TYPE = "MESSAGE";
+    private static final ZoneId LOCAL_ZONE_ID = ZoneId.of("Asia/Seoul");
     private static final DateTimeFormatter DATE_MINUTE_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyyMMddHHmm").withZone(ZoneOffset.UTC);
+            DateTimeFormatter.ofPattern("yyyyMMddHHmm").withZone(LOCAL_ZONE_ID);
 
     private final URI selectionUri;
     private final ReturnedMessageQueryProperties properties;
