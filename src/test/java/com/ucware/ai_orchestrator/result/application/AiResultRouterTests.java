@@ -45,6 +45,7 @@ class AiResultRouterTests {
         DeliveryEvent delivered = eventCaptor.getValue();
         org.assertj.core.api.Assertions.assertThat(delivered.connectionId()).isEqualTo("connection-1");
         org.assertj.core.api.Assertions.assertThat(delivered.userId()).isEqualTo("user-1");
+        org.assertj.core.api.Assertions.assertThat(delivered.lifecycleEvent()).isNull();
         org.assertj.core.api.Assertions.assertThat(delivered.scopeRef()).isEqualTo(routingRef.scope());
     }
 

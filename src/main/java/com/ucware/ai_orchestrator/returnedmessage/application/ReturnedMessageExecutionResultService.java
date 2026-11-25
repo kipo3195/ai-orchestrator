@@ -128,6 +128,7 @@ public class ReturnedMessageExecutionResultService
                             lifecycle.executionId(),
                             lifecycle.deliveryId(),
                             lifecycle.result(),
+                            lifecycle.lifecycleEvent(),
                             lifecycle.routingRef()));
             if (outcome == ReturnedMessageResultSender.DeliveryOutcome.DELIVERED) {
                 repository.deliveryCompleted(

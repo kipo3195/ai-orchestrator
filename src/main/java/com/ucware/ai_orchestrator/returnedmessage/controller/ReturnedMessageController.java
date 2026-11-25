@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ucware.ai_orchestrator.result.domain.LifecycleEvent;
 import com.ucware.ai_orchestrator.returnedmessage.application.HandleReturnedMessageConfirmation;
 import com.ucware.ai_orchestrator.returnedmessage.application.HandleReturnedMessageExecutionResult;
 import com.ucware.ai_orchestrator.returnedmessage.application.HandleUserReturned;
@@ -183,7 +184,8 @@ public class ReturnedMessageController {
             String confirmationId,
             String messageSelectionRef,
             Instant confirmationExpiresAt,
-            String executionId) {
+            String executionId,
+            LifecycleEvent lifecycleEvent) {
 
         // ReturnedMessageResponse를 new로 생성하기 전에 ReturnedMessageResponse.from을 호출하게 하는
         // 정적 팩토리 함수
@@ -210,7 +212,8 @@ public class ReturnedMessageController {
                     lifecycle == null ? null : lifecycle.confirmationId(),
                     lifecycle == null ? null : lifecycle.messageSelectionRef(),
                     lifecycle == null ? null : lifecycle.confirmationExpiresAt(),
-                    lifecycle == null ? null : lifecycle.executionId());
+                    lifecycle == null ? null : lifecycle.executionId(),
+                    lifecycle == null ? null : lifecycle.lifecycleEvent());
         }
     }
 }

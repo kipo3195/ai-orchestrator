@@ -16,7 +16,9 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
+import com.ucware.ai_orchestrator.result.domain.LifecycleEvent;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGateway;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageAsyncTaskExecutor;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository;
@@ -79,8 +81,15 @@ class ReturnedMessageExecutionResultServiceTests {
     void deliveryWorkerSendsPersistedPayloadAndCompletesLifecycle() {
         ReturnedMessageLifecycle processing = lifecycle(
                 ReturnedMessageStatus.PROCESSING, null, null);
+        LifecycleEvent topicsReady = new LifecycleEvent(
+                "returned_message_topic",
+                "request-1",
+                "client-event-3",
+                3,
+                "TOPICS_READY",
+                NOW.plusSeconds(2));
         ReturnedMessageLifecycle pending = lifecycle(
-                ReturnedMessageStatus.DELIVERY_PENDING, result(), "delivery-1");
+                ReturnedMessageStatus.DELIVERY_PENDING, result(), "delivery-1", topicsReady);
         when(repository.findOwned("tenant-1", "user-1", "request-1"))
                 .thenReturn(Optional.of(processing), Optional.of(pending));
         when(repository.executionSucceeded(
@@ -101,12 +110,15 @@ class ReturnedMessageExecutionResultServiceTests {
                 new AiExecutionGateway.ExecutionResult(
                         AiExecutionGateway.Status.SUCCEEDED, result(), null));
 
-        verify(resultSender).send(new ReturnedMessageResultSender.ResultDelivery(
-                "request-1",
-                "execution-1",
-                "delivery-1",
-                result(),
-                pending.routingRef()));
+        ArgumentCaptor<ReturnedMessageResultSender.ResultDelivery> deliveryCaptor =
+                ArgumentCaptor.forClass(ReturnedMessageResultSender.ResultDelivery.class);
+        verify(resultSender).send(deliveryCaptor.capture());
+        assertThat(deliveryCaptor.getValue().requestId()).isEqualTo("request-1");
+        assertThat(deliveryCaptor.getValue().executionId()).isEqualTo("execution-1");
+        assertThat(deliveryCaptor.getValue().deliveryId()).isEqualTo("delivery-1");
+        assertThat(deliveryCaptor.getValue().result()).isEqualTo(result());
+        assertThat(deliveryCaptor.getValue().lifecycleEvent()).isEqualTo(topicsReady);
+        assertThat(deliveryCaptor.getValue().routingRef()).isEqualTo(pending.routingRef());
         verify(repository).deliveryCompleted(
                 "tenant-1", "request-1", "execution-1", "delivery-1");
     }
@@ -202,6 +214,14 @@ class ReturnedMessageExecutionResultServiceTests {
             ReturnedMessageStatus status,
             ReturnedMessageTopicsResult result,
             String deliveryId) {
+        return lifecycle(status, result, deliveryId, null);
+    }
+
+    private ReturnedMessageLifecycle lifecycle(
+            ReturnedMessageStatus status,
+            ReturnedMessageTopicsResult result,
+            String deliveryId,
+            LifecycleEvent lifecycleEvent) {
         return new ReturnedMessageLifecycle(
                 "request-1",
                 "trigger-1",
@@ -229,6 +249,7 @@ class ReturnedMessageExecutionResultServiceTests {
                 deliveryId,
                 null,
                 null,
+                lifecycleEvent,
                 NOW,
                 NOW);
     }

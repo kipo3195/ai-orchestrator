@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.ucware.ai_orchestrator.result.domain.LifecycleEvent;
 import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
 import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 import com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessagePersistenceException;
@@ -28,6 +30,7 @@ import com.ucware.ai_orchestrator.returnedmessage.application.port.LifecycleCrea
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageRepository.DeliveryRetryResult;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageFailureStage;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageClientEventState;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageLifecycle;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageRequest;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageStatus;
@@ -36,6 +39,7 @@ import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsRe
 @Repository
 public class JdbcReturnedMessageRepository implements ReturnedMessageRepository {
 
+    private static final String CLIENT_EVENT_TYPE = "returned_message_topic";
     private static final String NON_TERMINAL_STATUSES =
             "('DETECTED', 'AWAITING_CONFIRMATION', 'PROCESSING', 'DELIVERY_PENDING')";
 
@@ -91,7 +95,9 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                     .param("connectionType", request.routingRef().connectionType())
                     .update());
             return LifecycleCreationResult.created(findOwned(
-                    request.tenantId(), request.userId(), request.requestId()).orElseThrow());
+                    request.tenantId(), request.userId(), request.requestId())
+                    .orElseThrow(() -> new ReturnedMessagePersistenceException(
+                            "Created Returned Message lifecycle could not be loaded", null)));
         } catch (DataIntegrityViolationException exception) {
             return resolveCollision(request);
         } catch (DataAccessException exception) {
@@ -191,6 +197,10 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                         UPDATE returned_message_request
                         SET status = 'SKIPPED_NO_MESSAGES',
                             unread_count = 0,
+                            client_event_state = :clientEventState,
+                            client_event_id = :clientEventId,
+                            client_event_revision = COALESCE(client_event_revision, 0) + 1,
+                            client_event_occurred_at = CURRENT_TIMESTAMP,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE tenant_id = :tenantId
                           AND request_id = :requestId
@@ -198,6 +208,9 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                         """)
                 .param("tenantId", tenantId)
                 .param("requestId", requestId)
+                .param("clientEventState", ReturnedMessageClientEventState.from(
+                        ReturnedMessageStatus.SKIPPED_NO_MESSAGES).name())
+                .param("clientEventId", UUID.randomUUID().toString())
                 .update() == 1;
     }
 
@@ -229,6 +242,10 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                                 selection_expires_at = :selectionExpiresAt,
                                 confirmation_id = :confirmationId,
                                 confirmation_expires_at = :confirmationExpiresAt,
+                                client_event_state = :clientEventState,
+                                client_event_id = :clientEventId,
+                                client_event_revision = COALESCE(client_event_revision, 0) + 1,
+                                client_event_occurred_at = CURRENT_TIMESTAMP,
                                 updated_at = CURRENT_TIMESTAMP
                             WHERE tenant_id = :tenantId
                               AND request_id = :requestId
@@ -240,6 +257,9 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                     .param("selectionExpiresAt", selectionExpiresAt)
                     .param("confirmationId", confirmationId)
                     .param("confirmationExpiresAt", confirmationExpiresAt)
+                    .param("clientEventState", ReturnedMessageClientEventState.from(
+                            ReturnedMessageStatus.AWAITING_CONFIRMATION).name())
+                    .param("clientEventId", UUID.randomUUID().toString())
                     .param("tenantId", tenantId)
                     .param("requestId", requestId)
                     .update() == 1;
@@ -254,12 +274,19 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                         SET status = 'FAILED',
                             failure_stage = 'DETECTION',
                             failure_reason = :failureReason,
+                            client_event_state = :clientEventState,
+                            client_event_id = :clientEventId,
+                            client_event_revision = COALESCE(client_event_revision, 0) + 1,
+                            client_event_occurred_at = CURRENT_TIMESTAMP,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE tenant_id = :tenantId
                           AND request_id = :requestId
                           AND status = 'DETECTED'
                         """)
                 .param("failureReason", safeReason)
+                .param("clientEventState", ReturnedMessageClientEventState.from(
+                        ReturnedMessageStatus.FAILED).name())
+                .param("clientEventId", UUID.randomUUID().toString())
                 .param("tenantId", tenantId)
                 .param("requestId", requestId)
                 .update() == 1;
@@ -276,6 +303,10 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
         return jdbcClient.sql("""
                         UPDATE returned_message_request
                         SET status = 'DECLINED',
+                            client_event_state = :clientEventState,
+                            client_event_id = :clientEventId,
+                            client_event_revision = COALESCE(client_event_revision, 0) + 1,
+                            client_event_occurred_at = CURRENT_TIMESTAMP,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE tenant_id = :tenantId
                           AND user_id = :userId
@@ -292,6 +323,9 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                 .param("absencePeriodId", absencePeriodId)
                 .param("confirmationId", confirmationId)
                 .param("messageSelectionRef", messageSelectionRef)
+                .param("clientEventState", ReturnedMessageClientEventState.from(
+                        ReturnedMessageStatus.DECLINED).name())
+                .param("clientEventId", UUID.randomUUID().toString())
                 .update() == 1;
     }
 
@@ -306,6 +340,10 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                         UPDATE returned_message_request
                         SET status = 'BLOCKED_BY_POLICY',
                             failure_reason = :failureReason,
+                            client_event_state = :clientEventState,
+                            client_event_id = :clientEventId,
+                            client_event_revision = COALESCE(client_event_revision, 0) + 1,
+                            client_event_occurred_at = CURRENT_TIMESTAMP,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE tenant_id = :tenantId
                           AND user_id = :userId
@@ -319,6 +357,9 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                 .param("userId", userId)
                 .param("requestId", requestId)
                 .param("confirmationId", confirmationId)
+                .param("clientEventState", ReturnedMessageClientEventState.from(
+                        ReturnedMessageStatus.BLOCKED_BY_POLICY).name())
+                .param("clientEventId", UUID.randomUUID().toString())
                 .update() == 1;
     }
 
@@ -333,6 +374,10 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                         UPDATE returned_message_request
                         SET status = 'PROCESSING',
                             execution_id = :executionId,
+                            client_event_state = :clientEventState,
+                            client_event_id = :clientEventId,
+                            client_event_revision = COALESCE(client_event_revision, 0) + 1,
+                            client_event_occurred_at = CURRENT_TIMESTAMP,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE tenant_id = :tenantId
                           AND user_id = :userId
@@ -346,6 +391,9 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                 .param("userId", userId)
                 .param("requestId", requestId)
                 .param("confirmationId", confirmationId)
+                .param("clientEventState", ReturnedMessageClientEventState.from(
+                        ReturnedMessageStatus.PROCESSING).name())
+                .param("clientEventId", UUID.randomUUID().toString())
                 .update() == 1;
     }
 
@@ -354,6 +402,10 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
         return jdbcClient.sql("""
                         UPDATE returned_message_request
                         SET status = 'EXPIRED',
+                            client_event_state = :clientEventState,
+                            client_event_id = :clientEventId,
+                            client_event_revision = COALESCE(client_event_revision, 0) + 1,
+                            client_event_occurred_at = CURRENT_TIMESTAMP,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE tenant_id = :tenantId
                           AND user_id = :userId
@@ -364,6 +416,9 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                 .param("tenantId", tenantId)
                 .param("userId", userId)
                 .param("requestId", requestId)
+                .param("clientEventState", ReturnedMessageClientEventState.from(
+                        ReturnedMessageStatus.EXPIRED).name())
+                .param("clientEventId", UUID.randomUUID().toString())
                 .update() == 1;
     }
 
@@ -372,6 +427,10 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
         return jdbcClient.sql("""
                         UPDATE returned_message_request
                         SET status = 'EXPIRED',
+                            client_event_state = :clientEventState,
+                            client_event_id = :clientEventId,
+                            client_event_revision = COALESCE(client_event_revision, 0) + 1,
+                            client_event_occurred_at = CURRENT_TIMESTAMP,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE tenant_id = :tenantId
                           AND request_id = :requestId
@@ -380,6 +439,9 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                         """)
                 .param("tenantId", tenantId)
                 .param("requestId", requestId)
+                .param("clientEventState", ReturnedMessageClientEventState.from(
+                        ReturnedMessageStatus.EXPIRED).name())
+                .param("clientEventId", UUID.randomUUID().toString())
                 .update() == 1;
     }
 
@@ -403,6 +465,10 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
             expired += jdbcClient.sql("""
                             UPDATE returned_message_request
                             SET status = 'EXPIRED',
+                                client_event_state = :clientEventState,
+                                client_event_id = :clientEventId,
+                                client_event_revision = COALESCE(client_event_revision, 0) + 1,
+                                client_event_occurred_at = CURRENT_TIMESTAMP,
                                 updated_at = CURRENT_TIMESTAMP
                             WHERE tenant_id = :tenantId
                               AND request_id = :requestId
@@ -411,6 +477,9 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                             """)
                     .param("tenantId", candidate.tenantId())
                     .param("requestId", candidate.requestId())
+                    .param("clientEventState", ReturnedMessageClientEventState.from(
+                            ReturnedMessageStatus.EXPIRED).name())
+                    .param("clientEventId", UUID.randomUUID().toString())
                     .update();
         }
         return expired;
@@ -429,6 +498,10 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                             result_payload = :resultPayload,
                             delivery_id = :deliveryId,
                             delivery_retry_count = 0,
+                            client_event_state = :clientEventState,
+                            client_event_id = :clientEventId,
+                            client_event_revision = COALESCE(client_event_revision, 0) + 1,
+                            client_event_occurred_at = CURRENT_TIMESTAMP,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE tenant_id = :tenantId
                           AND request_id = :requestId
@@ -437,6 +510,9 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                         """)
                 .param("resultPayload", writeResult(result))
                 .param("deliveryId", deliveryId)
+                .param("clientEventState", ReturnedMessageClientEventState.from(
+                        ReturnedMessageStatus.DELIVERY_PENDING).name())
+                .param("clientEventId", UUID.randomUUID().toString())
                 .param("tenantId", tenantId)
                 .param("requestId", requestId)
                 .param("executionId", executionId)
@@ -455,6 +531,10 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                         SET status = 'FAILED',
                             failure_stage = :failureStage,
                             failure_reason = :failureReason,
+                            client_event_state = :clientEventState,
+                            client_event_id = :clientEventId,
+                            client_event_revision = COALESCE(client_event_revision, 0) + 1,
+                            client_event_occurred_at = CURRENT_TIMESTAMP,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE tenant_id = :tenantId
                           AND request_id = :requestId
@@ -463,6 +543,9 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                         """)
                 .param("failureStage", failureStage.name())
                 .param("failureReason", safeReason)
+                .param("clientEventState", ReturnedMessageClientEventState.from(
+                        ReturnedMessageStatus.FAILED).name())
+                .param("clientEventId", UUID.randomUUID().toString())
                 .param("tenantId", tenantId)
                 .param("requestId", requestId)
                 .param("executionId", executionId)
@@ -534,6 +617,10 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                             SET status = 'DELIVERY_FAILED',
                                 failure_stage = 'DELIVERY',
                                 failure_reason = :failureReason,
+                                client_event_state = :clientEventState,
+                                client_event_id = :clientEventId,
+                                client_event_revision = COALESCE(client_event_revision, 0) + 1,
+                                client_event_occurred_at = CURRENT_TIMESTAMP,
                                 updated_at = CURRENT_TIMESTAMP
                             WHERE tenant_id = :tenantId
                               AND request_id = :requestId
@@ -543,6 +630,9 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                               AND delivery_retry_count >= :maxRetries
                             """)
                     .param("failureReason", safeReason)
+                    .param("clientEventState", ReturnedMessageClientEventState.from(
+                            ReturnedMessageStatus.DELIVERY_FAILED).name())
+                    .param("clientEventId", UUID.randomUUID().toString())
                     .param("tenantId", tenantId)
                     .param("requestId", requestId)
                     .param("executionId", executionId)
@@ -612,23 +702,6 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                 .update();
     }
 
-    private int updateStatus(
-            String tenantId, String requestId, String expectedStatus, String nextStatus) {
-        return jdbcClient.sql("""
-                        UPDATE returned_message_request
-                        SET status = :nextStatus,
-                            updated_at = CURRENT_TIMESTAMP
-                        WHERE tenant_id = :tenantId
-                          AND request_id = :requestId
-                          AND status = :expectedStatus
-                        """)
-                .param("nextStatus", nextStatus)
-                .param("tenantId", tenantId)
-                .param("requestId", requestId)
-                .param("expectedStatus", expectedStatus)
-                .update();
-    }
-
     private boolean correlatedStatusUpdate(
             String tenantId,
             String requestId,
@@ -641,15 +714,25 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
         String failureAssignment = failureReason == null
                 ? ""
                 : ", failure_stage = 'DELIVERY', failure_reason = :failureReason";
+        ReturnedMessageStatus expected = ReturnedMessageStatus.valueOf(expectedStatus);
+        ReturnedMessageStatus next = ReturnedMessageStatus.valueOf(nextStatus);
+        boolean clientStateChanged = ReturnedMessageClientEventState.from(expected)
+                != ReturnedMessageClientEventState.from(next);
+        String clientEventAssignment = clientStateChanged
+                ? ", client_event_state = :clientEventState"
+                        + ", client_event_id = :clientEventId"
+                        + ", client_event_revision = COALESCE(client_event_revision, 0) + 1"
+                        + ", client_event_occurred_at = CURRENT_TIMESTAMP"
+                : "";
         JdbcClient.StatementSpec statement = jdbcClient.sql("""
                         UPDATE returned_message_request
-                        SET status = :nextStatus%s,
+                        SET status = :nextStatus%s%s,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE tenant_id = :tenantId
                           AND request_id = :requestId
                           AND status = :expectedStatus
                           AND execution_id = :executionId%s
-                        """.formatted(failureAssignment, deliveryCondition))
+                        """.formatted(failureAssignment, clientEventAssignment, deliveryCondition))
                 .param("nextStatus", nextStatus)
                 .param("tenantId", tenantId)
                 .param("requestId", requestId)
@@ -661,7 +744,18 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
         if (failureReason != null) {
             statement = statement.param("failureReason", failureReason);
         }
+        if (clientStateChanged) {
+            statement = withNewClientEvent(statement, next);
+        }
         return statement.update() == 1;
+    }
+
+    private JdbcClient.StatementSpec withNewClientEvent(
+            JdbcClient.StatementSpec statement,
+            ReturnedMessageStatus nextStatus) {
+        return statement
+                .param("clientEventState", ReturnedMessageClientEventState.from(nextStatus).name())
+                .param("clientEventId", UUID.randomUUID().toString());
     }
 
     private ReturnedMessageLifecycle mapRow(ResultSet resultSet, int rowNumber) throws SQLException {
@@ -674,6 +768,16 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                 resultSet.getString("target_ref"),
                 new RoutingScope("ABSENCE_PERIOD", absencePeriodId),
                 resultSet.getObject("connection_type", Integer.class));
+        String clientEventId = resultSet.getString("client_event_id");
+        LifecycleEvent lifecycleEvent = clientEventId == null
+                ? null
+                : new LifecycleEvent(
+                        CLIENT_EVENT_TYPE,
+                        resultSet.getString("request_id"),
+                        clientEventId,
+                        resultSet.getLong("client_event_revision"),
+                        resultSet.getString("client_event_state"),
+                        instant(resultSet, "client_event_occurred_at"));
         return new ReturnedMessageLifecycle(
                 resultSet.getString("request_id"),
                 resultSet.getString("trigger_id"),
@@ -697,6 +801,7 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                 enumValue(ReturnedMessageFailureStage.class,
                         resultSet.getString("failure_stage")),
                 resultSet.getString("failure_reason"),
+                lifecycleEvent,
                 instant(resultSet, "created_at"),
                 instant(resultSet, "updated_at"));
     }
@@ -816,7 +921,9 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                    message_selection_ref, unread_count, selected_at, selection_expires_at,
                    confirmation_id, confirmation_expires_at,
                    execution_id, result_payload, delivery_id,
-                   failure_stage, failure_reason, created_at, updated_at
+                   failure_stage, failure_reason,
+                   client_event_state, client_event_id, client_event_revision,
+                   client_event_occurred_at, created_at, updated_at
             FROM returned_message_request
             """;
 }

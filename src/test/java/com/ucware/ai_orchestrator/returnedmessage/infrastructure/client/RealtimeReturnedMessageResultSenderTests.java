@@ -22,6 +22,7 @@ import com.ucware.ai_orchestrator.result.application.port.RealtimeConnectionReso
 import com.ucware.ai_orchestrator.result.application.port.ResultDeliveryPort;
 import com.ucware.ai_orchestrator.result.domain.DeliveryEvent;
 import com.ucware.ai_orchestrator.result.domain.DeliveryTarget;
+import com.ucware.ai_orchestrator.result.domain.LifecycleEvent;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageResultSender;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsResult;
 import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
@@ -49,6 +50,9 @@ class RealtimeReturnedMessageResultSenderTests {
         RoutingRef routingRef = routingRef();
         DeliveryTarget target = new DeliveryTarget("connection-1", "WS1");
         ReturnedMessageTopicsResult result = result();
+        LifecycleEvent lifecycleEvent = new LifecycleEvent(
+                "returned_message_topic", "request-1", "client-event-3", 3,
+                "TOPICS_READY", NOW);
         when(connectionResolver.resolve(routingRef)).thenReturn(Optional.of(target));
 
         ReturnedMessageResultSender.DeliveryOutcome outcome = sender.send(
@@ -57,6 +61,7 @@ class RealtimeReturnedMessageResultSenderTests {
                         "execution-1",
                         "delivery-1",
                         result,
+                        lifecycleEvent,
                         routingRef));
 
         assertThat(outcome).isEqualTo(
@@ -69,6 +74,7 @@ class RealtimeReturnedMessageResultSenderTests {
         assertThat(event.eventType()).isEqualTo("RETURNED_MESSAGE_TOPICS_COMPLETED");
         assertThat(event.connectionId()).isEqualTo("connection-1");
         assertThat(event.userId()).isEqualTo("user-1");
+        assertThat(event.lifecycleEvent()).isEqualTo(lifecycleEvent);
         assertThat(event.scopeRef()).isEqualTo(routingRef.scope());
         assertThat(event.payload()).isEqualTo(result);
     }

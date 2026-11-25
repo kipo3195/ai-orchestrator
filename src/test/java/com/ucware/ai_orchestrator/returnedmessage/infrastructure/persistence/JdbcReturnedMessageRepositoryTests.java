@@ -21,6 +21,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ucware.ai_orchestrator.result.domain.LifecycleEvent;
 import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
 import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.LifecycleCreationResult;
@@ -55,6 +56,96 @@ class JdbcReturnedMessageRepositoryTests {
         jdbcTemplate.update("DELETE FROM returned_message_selection_item");
         jdbcTemplate.update("DELETE FROM returned_message_selection");
         jdbcTemplate.update("DELETE FROM returned_message_request");
+    }
+
+    @Test
+    void publicEventRevisionChangesOnlyWhenPublicStateChanges() {
+        ReturnedMessageRequest request = request(
+                "tenant-1", "user-1", "request-1", "trigger-1", "period-1");
+
+        assertThat(repository.create(request).lifecycle().lifecycleEvent()).isNull();
+        Instant now = repository.currentTime();
+        assertThat(repository.awaitConfirmation(
+                "tenant-1", "request-1", "selection-1", 1,
+                now, now.plusSeconds(600), "confirmation-1", Duration.ofMinutes(2)))
+                .isTrue();
+
+        LifecycleEvent awaiting = repository.findOwned("tenant-1", "user-1", "request-1")
+                .orElseThrow()
+                .lifecycleEvent();
+        assertThat(awaiting.type()).isEqualTo("returned_message_topic");
+        assertThat(awaiting.lifecycleId()).isEqualTo("request-1");
+        assertThat(awaiting.revision()).isEqualTo(1);
+        assertThat(awaiting.state()).isEqualTo("AWAITING_CONFIRMATION");
+        assertThat(awaiting.eventId()).isNotBlank();
+        assertThat(awaiting.occurredAt()).isNotNull();
+        assertThat(repository.create(request).lifecycle().lifecycleEvent()).isEqualTo(awaiting);
+
+        assertThat(repository.startProcessing(
+                "tenant-1", "user-1", "request-1", "confirmation-1", "execution-1"))
+                .isTrue();
+        LifecycleEvent processing = repository.findOwned("tenant-1", "user-1", "request-1")
+                .orElseThrow()
+                .lifecycleEvent();
+        assertThat(processing.revision()).isEqualTo(2);
+        assertThat(processing.state()).isEqualTo("PROCESSING");
+        assertThat(processing.eventId()).isNotEqualTo(awaiting.eventId());
+
+        assertThat(repository.tryClaim(
+                "tenant-1", "request-1", "worker-1", Duration.ofMinutes(1))).isTrue();
+        repository.releaseClaim("tenant-1", "request-1", "worker-1");
+        assertThat(repository.findOwned("tenant-1", "user-1", "request-1")
+                .orElseThrow().lifecycleEvent()).isEqualTo(processing);
+
+        assertThat(repository.executionSucceeded(
+                "tenant-1", "request-1", "execution-1", result(), "delivery-1"))
+                .isTrue();
+        LifecycleEvent topicsReady = repository.findOwned("tenant-1", "user-1", "request-1")
+                .orElseThrow()
+                .lifecycleEvent();
+        assertThat(topicsReady.revision()).isEqualTo(3);
+        assertThat(topicsReady.state()).isEqualTo("TOPICS_READY");
+
+        assertThat(repository.recordRetryableDeliveryFailure(
+                "tenant-1", "request-1", "execution-1", "delivery-1", 2,
+                "RESULT_DELIVERY_RETRIES_EXHAUSTED"))
+                .isEqualTo(DeliveryRetryResult.RETRY_SCHEDULED);
+        assertThat(repository.findOwned("tenant-1", "user-1", "request-1")
+                .orElseThrow().lifecycleEvent()).isEqualTo(topicsReady);
+
+        assertThat(repository.deliveryCompleted(
+                "tenant-1", "request-1", "execution-1", "delivery-1")).isTrue();
+        assertThat(repository.findOwned("tenant-1", "user-1", "request-1"))
+                .get()
+                .satisfies(lifecycle -> {
+                    assertThat(lifecycle.status()).isEqualTo(ReturnedMessageStatus.COMPLETED);
+                    assertThat(lifecycle.lifecycleEvent()).isEqualTo(topicsReady);
+                });
+    }
+
+    @Test
+    void duplicateDeclineKeepsExistingClientEventMetadata() {
+        repository.create(request(
+                "tenant-1", "user-1", "request-1", "trigger-1", "period-1"));
+        Instant now = repository.currentTime();
+        repository.awaitConfirmation(
+                "tenant-1", "request-1", "selection-1", 1,
+                now, now.plusSeconds(600), "confirmation-1", Duration.ofMinutes(2));
+
+        assertThat(repository.decline(
+                "tenant-1", "user-1", "request-1", "period-1",
+                "confirmation-1", "selection-1")).isTrue();
+        LifecycleEvent declined = repository.findOwned("tenant-1", "user-1", "request-1")
+                .orElseThrow()
+                .lifecycleEvent();
+        assertThat(declined.revision()).isEqualTo(2);
+        assertThat(declined.state()).isEqualTo("DECLINED");
+
+        assertThat(repository.decline(
+                "tenant-1", "user-1", "request-1", "period-1",
+                "confirmation-1", "selection-1")).isFalse();
+        assertThat(repository.findOwned("tenant-1", "user-1", "request-1")
+                .orElseThrow().lifecycleEvent()).isEqualTo(declined);
     }
 
     @Test
@@ -156,6 +247,8 @@ class JdbcReturnedMessageRepositoryTests {
                     assertThat(lifecycle.status())
                             .isEqualTo(ReturnedMessageStatus.SKIPPED_NO_MESSAGES);
                     assertThat(lifecycle.unreadCount()).isZero();
+                    assertThat(lifecycle.lifecycleEvent().revision()).isEqualTo(1);
+                    assertThat(lifecycle.lifecycleEvent().state()).isEqualTo("UNAVAILABLE");
                 });
     }
 

@@ -26,6 +26,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.ucware.ai_orchestrator.result.domain.LifecycleEvent;
 import com.ucware.ai_orchestrator.returnedmessage.application.HandleReturnedMessageConfirmation;
 import com.ucware.ai_orchestrator.returnedmessage.application.HandleReturnedMessageExecutionResult;
 import com.ucware.ai_orchestrator.returnedmessage.application.HandleUserReturned;
@@ -276,11 +277,19 @@ class ReturnedMessagePolicyErrorResponseTests {
     @Test
     void awaitingConfirmationResponseIncludesConfirmationCorrelation() throws Exception {
         ReturnedMessageLifecycle awaiting = mock(ReturnedMessageLifecycle.class);
+        LifecycleEvent lifecycleEvent = new LifecycleEvent(
+                "returned_message_topic",
+                "request-1",
+                "client-event-1",
+                1,
+                "AWAITING_CONFIRMATION",
+                Instant.parse("2026-10-19T06:00:01Z"));
         when(awaiting.status()).thenReturn(ReturnedMessageStatus.AWAITING_CONFIRMATION);
         when(awaiting.requestId()).thenReturn("request-1");
         when(awaiting.triggerId()).thenReturn("trigger-1");
         when(awaiting.confirmationId()).thenReturn("confirmation-1");
         when(awaiting.messageSelectionRef()).thenReturn("selection-1");
+        when(awaiting.lifecycleEvent()).thenReturn(lifecycleEvent);
         when(handleUserReturned.handle(any()))
                 .thenReturn(ReturnedMessageOperationResult.created(awaiting));
 
@@ -291,16 +300,31 @@ class ReturnedMessagePolicyErrorResponseTests {
                 .andExpect(jsonPath("$.requestId").value("request-1"))
                 .andExpect(jsonPath("$.status").value("AWAITING_CONFIRMATION"))
                 .andExpect(jsonPath("$.confirmationId").value("confirmation-1"))
-                .andExpect(jsonPath("$.messageSelectionRef").value("selection-1"));
+                .andExpect(jsonPath("$.messageSelectionRef").value("selection-1"))
+                .andExpect(jsonPath("$.lifecycleEvent.type").value("returned_message_topic"))
+                .andExpect(jsonPath("$.lifecycleEvent.lifecycleId").value("request-1"))
+                .andExpect(jsonPath("$.lifecycleEvent.eventId").value("client-event-1"))
+                .andExpect(jsonPath("$.lifecycleEvent.revision").value(1))
+                .andExpect(jsonPath("$.lifecycleEvent.state").value("AWAITING_CONFIRMATION"))
+                .andExpect(jsonPath("$.lifecycleEvent.occurredAt")
+                        .value("2026-10-19T06:00:01Z"));
     }
 
     @Test
     void acceptedConfirmationReturns202WhileAiRunsInBackground() throws Exception {
         ReturnedMessageLifecycle processing = mock(ReturnedMessageLifecycle.class);
+        LifecycleEvent lifecycleEvent = new LifecycleEvent(
+                "returned_message_topic",
+                "request-1",
+                "client-event-2",
+                2,
+                "PROCESSING",
+                Instant.parse("2026-10-19T06:01:00Z"));
         when(processing.status()).thenReturn(ReturnedMessageStatus.PROCESSING);
         when(processing.requestId()).thenReturn("request-1");
         when(processing.triggerId()).thenReturn("trigger-1");
         when(processing.executionId()).thenReturn("execution-1");
+        when(processing.lifecycleEvent()).thenReturn(lifecycleEvent);
         when(handleConfirmation.handle(any()))
                 .thenReturn(ReturnedMessageOperationResult.updated(processing));
 
@@ -323,7 +347,50 @@ class ReturnedMessagePolicyErrorResponseTests {
                                 """))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.status").value("PROCESSING"))
-                .andExpect(jsonPath("$.executionId").value("execution-1"));
+                .andExpect(jsonPath("$.executionId").value("execution-1"))
+                .andExpect(jsonPath("$.lifecycleEvent.eventId").value("client-event-2"))
+                .andExpect(jsonPath("$.lifecycleEvent.revision").value(2))
+                .andExpect(jsonPath("$.lifecycleEvent.state").value("PROCESSING"));
+    }
+
+    @Test
+    void declinedConfirmationReturnsDeclinedLifecycleEvent() throws Exception {
+        ReturnedMessageLifecycle declined = mock(ReturnedMessageLifecycle.class);
+        when(declined.status()).thenReturn(ReturnedMessageStatus.DECLINED);
+        when(declined.requestId()).thenReturn("request-1");
+        when(declined.triggerId()).thenReturn("trigger-1");
+        when(declined.lifecycleEvent()).thenReturn(new LifecycleEvent(
+                "returned_message_topic",
+                "request-1",
+                "client-event-2",
+                2,
+                "DECLINED",
+                Instant.parse("2026-10-19T06:01:00Z")));
+        when(handleConfirmation.handle(any()))
+                .thenReturn(ReturnedMessageOperationResult.updated(declined));
+
+        mockMvc.perform(post("/api/v1/returned-messages/request-1/confirmations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "absencePeriodId": "period-1",
+                                  "confirmationId": "confirmation-1",
+                                  "messageSelectionRef": "selection-1",
+                                  "decision": "NO",
+                                  "decidedAt": "2026-10-19T06:01:00Z",
+                                  "routingRef": {
+                                    "tenantId": "tenant-1",
+                                    "userId": "user-1",
+                                    "targetRef": "target-1",
+                                    "connectionType": 1
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DECLINED"))
+                .andExpect(jsonPath("$.lifecycleEvent.eventId").value("client-event-2"))
+                .andExpect(jsonPath("$.lifecycleEvent.revision").value(2))
+                .andExpect(jsonPath("$.lifecycleEvent.state").value("DECLINED"));
     }
 
     @Test

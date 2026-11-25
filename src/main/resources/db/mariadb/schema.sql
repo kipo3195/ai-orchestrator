@@ -45,6 +45,10 @@ CREATE TABLE IF NOT EXISTS returned_message_request (
     failure_reason VARCHAR(200),
     claim_owner VARCHAR(100),
     claim_until DATETIME(6),
+    client_event_state VARCHAR(40),
+    client_event_id VARCHAR(100),
+    client_event_revision BIGINT,
+    client_event_occurred_at DATETIME(6),
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 
@@ -66,6 +70,38 @@ CREATE TABLE IF NOT EXISTS returned_message_request (
 
 ALTER TABLE returned_message_request
     ADD COLUMN IF NOT EXISTS delivery_retry_count INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE returned_message_request
+    ADD COLUMN IF NOT EXISTS client_event_state VARCHAR(40);
+
+ALTER TABLE returned_message_request
+    ADD COLUMN IF NOT EXISTS client_event_id VARCHAR(100);
+
+ALTER TABLE returned_message_request
+    ADD COLUMN IF NOT EXISTS client_event_revision BIGINT;
+
+ALTER TABLE returned_message_request
+    ADD COLUMN IF NOT EXISTS client_event_occurred_at DATETIME(6);
+
+UPDATE returned_message_request
+SET client_event_state = CASE status
+        WHEN 'AWAITING_CONFIRMATION' THEN 'AWAITING_CONFIRMATION'
+        WHEN 'PROCESSING' THEN 'PROCESSING'
+        WHEN 'DELIVERY_PENDING' THEN 'TOPICS_READY'
+        WHEN 'COMPLETED' THEN 'TOPICS_READY'
+        WHEN 'DECLINED' THEN 'DECLINED'
+        WHEN 'EXPIRED' THEN 'EXPIRED'
+        WHEN 'BLOCKED_BY_POLICY' THEN 'UNAVAILABLE'
+        WHEN 'SKIPPED_NO_MESSAGES' THEN 'UNAVAILABLE'
+        WHEN 'FAILED' THEN 'FAILED'
+        WHEN 'DELIVERY_FAILED' THEN 'FAILED'
+        WHEN 'CANCELLED' THEN 'CANCELLED'
+    END,
+    client_event_id = UUID(),
+    client_event_revision = 1,
+    client_event_occurred_at = updated_at
+WHERE client_event_id IS NULL
+  AND status <> 'DETECTED';
 
 CREATE TABLE IF NOT EXISTS returned_message_selection (
     selection_ref VARCHAR(36) NOT NULL,

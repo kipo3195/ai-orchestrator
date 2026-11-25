@@ -41,6 +41,7 @@ public class AiResultRouter {
                 resultEvent.eventType(),
                 target.connectionId(),
                 routingRef.userId(),
+                resultEvent.lifecycleEvent(),
                 routingRef.scope(),
                 resultEvent.payload());
         deliveryPort.deliver(target, deliveryEvent);

@@ -31,6 +31,7 @@ public class RealtimeReturnedMessageResultSender implements ReturnedMessageResul
                             command.executionId(),
                             command.deliveryId(),
                             EVENT_TYPE,
+                            command.lifecycleEvent(),
                             command.result()));
             return DeliveryOutcome.DELIVERED;
         } catch (ResultRoutingException exception) {

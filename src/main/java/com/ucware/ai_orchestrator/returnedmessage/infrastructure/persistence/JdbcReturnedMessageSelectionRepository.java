@@ -13,6 +13,7 @@ import java.util.UUID;
 
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -27,12 +28,15 @@ public class JdbcReturnedMessageSelectionRepository
         implements ReturnedMessageSelectionRepository {
 
     private final JdbcClient jdbcClient;
+    private final JdbcTemplate jdbcTemplate;
     private final TransactionTemplate transactionTemplate;
 
     public JdbcReturnedMessageSelectionRepository(
             JdbcClient jdbcClient,
+            JdbcTemplate jdbcTemplate,
             PlatformTransactionManager transactionManager) {
         this.jdbcClient = jdbcClient;
+        this.jdbcTemplate = jdbcTemplate;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -200,26 +204,23 @@ public class JdbcReturnedMessageSelectionRepository
                 .param("expiresAt", selection.expiresAt())
                 .update();
 
-        for (ReturnedMessageSelection.Item item : selection.items()) {
-            jdbcClient.sql("""
-                            INSERT INTO returned_message_selection_item (
-                                selection_ref, sequence_no, source_system,
-                                source_item_type, source_item_key,
-                                source_item_subject, created_at
-                            ) VALUES (
-                                :selectionRef, :sequence, :sourceSystem,
-                                :sourceItemType, :sourceItemKey,
-                                :sourceItemSubject, CURRENT_TIMESTAMP
-                            )
-                            """)
-                    .param("selectionRef", selection.messageSelectionRef())
-                    .param("sequence", item.sequence())
-                    .param("sourceSystem", item.sourceSystem())
-                    .param("sourceItemType", item.sourceItemType())
-                    .param("sourceItemKey", item.sourceItemKey())
-                    .param("sourceItemSubject", item.subject())
-                    .update();
-        }
+        jdbcTemplate.batchUpdate("""
+                        INSERT INTO returned_message_selection_item (
+                            selection_ref, sequence_no, source_system,
+                            source_item_type, source_item_key,
+                            source_item_subject, created_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                        """,
+                selection.items(),
+                selection.items().size(),
+                (statement, item) -> {
+                    statement.setString(1, selection.messageSelectionRef());
+                    statement.setInt(2, item.sequence());
+                    statement.setString(3, item.sourceSystem());
+                    statement.setString(4, item.sourceItemType());
+                    statement.setString(5, item.sourceItemKey());
+                    statement.setString(6, item.subject());
+                });
     }
 
     private void delete(String messageSelectionRef) {

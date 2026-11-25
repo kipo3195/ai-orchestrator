@@ -6,7 +6,12 @@ public record ResultEvent(
         String executionId,
         String eventId,
         String eventType,
+        LifecycleEvent lifecycleEvent,
         Object payload) {
+
+    public ResultEvent(String executionId, String eventId, String eventType, Object payload) {
+        this(executionId, eventId, eventType, null, payload);
+    }
 
     public ResultEvent {
         Objects.requireNonNull(executionId);

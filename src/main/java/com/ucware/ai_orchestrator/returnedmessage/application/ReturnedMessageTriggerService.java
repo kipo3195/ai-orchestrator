@@ -41,10 +41,9 @@ public class ReturnedMessageTriggerService implements HandleUserReturned {
     @Override
     public ReturnedMessageOperationResult handle(ReturnedMessageRequest request) {
         validateSourceContract(request);
-
+        
+        // 기본 eligibility 점검
         String rejection = validateEligibility(request);
-
-        // 상태 점검
         if (rejection != null) {
                 logger.debug(
                 "Returned Message request rejected. requestId={}, absencePeriodId={}, reason={}",
@@ -54,6 +53,8 @@ public class ReturnedMessageTriggerService implements HandleUserReturned {
             return ReturnedMessageOperationResult.rejected(rejection);
         }
 
+        // -> 이미 만료된 요청도 정책/권한 조회를 수행하는 것을 방지 (비용)
+        
         // 정책 점검
         var access = accessEvaluator.evaluateMessageSelection(
                 request.tenantId(), request.userId(), request.absencePeriodId());
