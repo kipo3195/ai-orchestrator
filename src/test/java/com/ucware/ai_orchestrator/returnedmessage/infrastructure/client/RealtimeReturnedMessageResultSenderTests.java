@@ -76,7 +76,20 @@ class RealtimeReturnedMessageResultSenderTests {
         assertThat(event.userId()).isEqualTo("user-1");
         assertThat(event.lifecycleEvent()).isEqualTo(lifecycleEvent);
         assertThat(event.scopeRef()).isEqualTo(routingRef.scope());
-        assertThat(event.payload()).isEqualTo(result);
+        var json = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
+                .valueToTree(event.payload());
+        assertThat(json.path("topics").get(0).path("messages").get(0).path("subject").asText())
+                .isEqualTo("제목 1");
+        assertThat(json.findValues("priorityReason")).isEmpty();
+        assertThat(json.findValues("replyReason")).isEmpty();
+        assertThat(json.findValues("actionReason")).isEmpty();
+        assertThat(json.has("messageAssessments")).isFalse();
+        assertThat(json.path("counts").size()).isEqualTo(5);
+        assertThat(json.path("counts").path("total").asInt()).isEqualTo(1);
+        assertThat(json.path("counts").path("urgent").asInt()).isZero();
+        assertThat(json.path("counts").path("replyRequired").asInt()).isEqualTo(1);
+        assertThat(json.path("counts").path("actionRequired").asInt()).isEqualTo(1);
+        assertThat(json.path("counts").path("other").asInt()).isZero();
     }
 
     @Test
@@ -116,6 +129,7 @@ class RealtimeReturnedMessageResultSenderTests {
                         List.of("message-1"))),
                 List.of(new ReturnedMessageTopicsResult.MessageAssessment(
                         "message-1",
+                        "제목 1",
                         ReturnedMessageTopicsResult.Priority.NORMAL,
                         null,
                         true,

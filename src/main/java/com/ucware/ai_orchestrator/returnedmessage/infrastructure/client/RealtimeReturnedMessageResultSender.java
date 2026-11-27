@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.ucware.ai_orchestrator.result.application.AiResultRouter;
+import com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessageClientResult;
 import com.ucware.ai_orchestrator.result.application.ResultRoutingException;
 import com.ucware.ai_orchestrator.result.domain.ResultEvent;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageResultSender;
@@ -32,7 +33,7 @@ public class RealtimeReturnedMessageResultSender implements ReturnedMessageResul
                             command.deliveryId(),
                             EVENT_TYPE,
                             command.lifecycleEvent(),
-                            command.result()));
+                            ReturnedMessageClientResult.from(command.result())));
             return DeliveryOutcome.DELIVERED;
         } catch (ResultRoutingException exception) {
             logger.warn(

@@ -61,6 +61,69 @@ class JdbcReturnedMessageRepositoryTests {
     }
 
     @Test
+    void persistsOnlyRelevantJudgmentsAndNullsEachUnsupportedReason() {
+        int index = 0;
+        for (var priority : ReturnedMessageTopicsResult.Priority.values()) {
+            for (boolean reply : new boolean[] { false, true }) {
+                for (boolean action : new boolean[] { false, true }) {
+                    String requestId = "judgment-" + index++;
+                    repository.create(request("tenant-1", "user-1", requestId,
+                            "trigger-" + requestId, "period-" + requestId));
+                    Instant now = repository.currentTime();
+                    repository.awaitConfirmation("tenant-1", requestId, "selection-" + requestId,
+                            1, now, now.plusSeconds(600), "confirmation-1", Duration.ofMinutes(2));
+                    repository.startProcessing("tenant-1", "user-1", requestId,
+                            "confirmation-1", "execution-1");
+                    var assessment = new ReturnedMessageTopicsResult.MessageAssessment(
+                            "message-1", "원본 제목", priority, "우선순위 근거",
+                            reply, "회신 근거", action, "처리 근거");
+                    var result = new ReturnedMessageTopicsResult(
+                            List.of(new ReturnedMessageTopicsResult.Topic(
+                                    "토픽", "요약", List.of("message-1"))),
+                            List.of(assessment), now);
+                    assertThat(repository.executionSucceeded("tenant-1", requestId,
+                            "execution-1", result, "delivery-1")).isTrue();
+                    assertThat(repository.executionSucceeded("tenant-1", requestId,
+                            "execution-1", result, "delivery-2")).isFalse();
+                    var rows = jdbcTemplate.queryForList(
+                            "SELECT * FROM returned_message_assessment_reason WHERE request_id = ?",
+                            requestId);
+                    if (priority == ReturnedMessageTopicsResult.Priority.UNKNOWN && !reply && !action) {
+                        assertThat(rows).isEmpty();
+                    } else {
+                        assertThat(rows).hasSize(1);
+                        var row = rows.get(0);
+                        assertThat(row.get("priority_reason")).isEqualTo(
+                                priority == ReturnedMessageTopicsResult.Priority.UNKNOWN
+                                        ? null : "우선순위 근거");
+                        assertThat(row.get("reply_reason")).isEqualTo(reply ? "회신 근거" : null);
+                        assertThat(row.get("action_reason")).isEqualTo(action ? "처리 근거" : null);
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    void rollsBackExecutionTransitionWhenReasonPersistenceFails() {
+        repository.create(request("tenant-1", "user-1", "request-1", "trigger-1", "period-1"));
+        Instant now = repository.currentTime();
+        repository.awaitConfirmation("tenant-1", "request-1", "selection-1", 1,
+                now, now.plusSeconds(600), "confirmation-1", Duration.ofMinutes(2));
+        repository.startProcessing("tenant-1", "user-1", "request-1", "confirmation-1", "execution-1");
+        var original = result();
+        var invalid = new ReturnedMessageTopicsResult(original.topics(),
+                List.of(original.messageAssessments().get(0), original.messageAssessments().get(0)), now);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> repository.executionSucceeded(
+                "tenant-1", "request-1", "execution-1", invalid, "delivery-1"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        assertThat(repository.findOwned("tenant-1", "user-1", "request-1").orElseThrow().status())
+                .isEqualTo(ReturnedMessageStatus.PROCESSING);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM returned_message_assessment_reason", Integer.class)).isZero();
+    }
+
+    @Test
     void publicEventRevisionChangesOnlyWhenPublicStateChanges() {
         ReturnedMessageRequest request = request(
                 "tenant-1", "user-1", "request-1", "trigger-1", "period-1");
@@ -353,12 +416,41 @@ class JdbcReturnedMessageRepositoryTests {
                 .result();
 
         assertThat(restored.topics()).hasSize(1);
+        assertThat(restored.messageAssessments()).allMatch(assessment -> assessment.subject() == null);
         assertThat(restored.messageAssessments())
                 .extracting(ReturnedMessageTopicsResult.MessageAssessment::messageRef)
                 .containsExactly("message-1", "message-2");
         assertThat(restored.messageAssessments())
                 .allMatch(assessment ->
                         assessment.priority() == ReturnedMessageTopicsResult.Priority.HIGH);
+    }
+
+    @Test
+    void readsV2ResultPayloadWithoutSubject() {
+        moveToDeliveryPending("request-1", "trigger-1", "period-1");
+        jdbcTemplate.update("""
+                UPDATE returned_message_request
+                SET result_payload = ?
+                WHERE tenant_id = 'tenant-1' AND request_id = 'request-1'
+                """, """
+                {
+                  "topics": [],
+                  "messageAssessments": [{
+                    "messageRef": "message-1",
+                    "priority": "NORMAL",
+                    "replyRequired": false,
+                    "actionRequired": false
+                  }],
+                  "generatedAt": "2026-10-28T01:00:00Z"
+                }
+                """);
+
+        ReturnedMessageTopicsResult restored = repository.findOwned(
+                "tenant-1", "user-1", "request-1").orElseThrow().result();
+
+        assertThat(restored.messageAssessments()).hasSize(1);
+        assertThat(restored.messageAssessments().get(0).messageRef()).isEqualTo("message-1");
+        assertThat(restored.messageAssessments().get(0).subject()).isNull();
     }
 
     private ReturnedMessageTopicsResult result() {
@@ -369,6 +461,7 @@ class JdbcReturnedMessageRepositoryTests {
                         List.of("message-1"))),
                 List.of(new ReturnedMessageTopicsResult.MessageAssessment(
                         "message-1",
+                        "제목 1",
                         ReturnedMessageTopicsResult.Priority.NORMAL,
                         null,
                         true,

@@ -26,7 +26,7 @@ import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageDecision
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageLifecycle;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageRequest;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageStatus;
-import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsResult;
+import com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessageTopicsAnalysis;
 import com.ucware.ai_orchestrator.routing.controller.RoutingRefRequest;
 import com.ucware.ai_orchestrator.routing.domain.RoutingRef;
 import com.ucware.ai_orchestrator.routing.domain.RoutingScope;
@@ -137,7 +137,8 @@ public class ReturnedMessageController {
                 requestId,
                 request.executionId(),
                 new AiExecutionGateway.ExecutionResult(
-                        request.status(), request.result(), request.failureReason()));
+                        request.status(), request.result() == null ? null : request.result().toDomain(),
+                        request.failureReason()));
         return ResponseEntity.ok(ReturnedMessageResponse.from(result));
     }
 
@@ -170,7 +171,7 @@ public class ReturnedMessageController {
             @NotBlank String taskType,
             @NotNull Integer contractVersion,
             @NotNull AiExecutionGateway.Status status,
-            ReturnedMessageTopicsResult result,
+            ReturnedMessageTopicsAnalysis result,
             String failureReason) {
     }
 

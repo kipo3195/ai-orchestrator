@@ -22,6 +22,7 @@ import org.springframework.stereotype.Component;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGateway;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageSelection;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsResult;
+import com.ucware.ai_orchestrator.returnedmessage.application.ReturnedMessageTopicsAnalysis;
 import com.ucware.ai_orchestrator.returnedmessage.infrastructure.config.ReturnedMessageAiProperties;
 import com.ucware.ai_orchestrator.global.infrastructure.http.ServiceApiKeyProperties;
 
@@ -209,61 +210,8 @@ public class OmniAiReturnedMessageExecutionClient implements AiExecutionGateway 
             @JsonProperty("task_type") String taskType,
             @JsonProperty("contract_version") int contractVersion,
             Status status,
-            TopicsResultResponse result,
+            ReturnedMessageTopicsAnalysis result,
             ErrorResponse error) {
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    private record TopicsResultResponse(
-            List<TopicResponse> topics,
-            @JsonProperty("message_assessments")
-            List<MessageAssessmentResponse> messageAssessments,
-            @JsonProperty("generated_at") Instant generatedAt) {
-
-        private ReturnedMessageTopicsResult toDomain() {
-            return new ReturnedMessageTopicsResult(
-                    topics.stream().map(TopicResponse::toDomain).toList(),
-                    messageAssessments.stream()
-                            .map(MessageAssessmentResponse::toDomain)
-                            .toList(),
-                    generatedAt);
-        }
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    private record TopicResponse(
-            String topic,
-            String summary,
-            @JsonProperty("source_message_refs") List<String> sourceMessageRefs) {
-
-        private ReturnedMessageTopicsResult.Topic toDomain() {
-            return new ReturnedMessageTopicsResult.Topic(
-                    topic,
-                    summary,
-                    sourceMessageRefs);
-        }
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    private record MessageAssessmentResponse(
-            @JsonProperty("message_ref") String messageRef,
-            ReturnedMessageTopicsResult.Priority priority,
-            @JsonProperty("priority_reason") String priorityReason,
-            @JsonProperty("reply_required") boolean replyRequired,
-            @JsonProperty("reply_reason") String replyReason,
-            @JsonProperty("action_required") boolean actionRequired,
-            @JsonProperty("action_reason") String actionReason) {
-
-        private ReturnedMessageTopicsResult.MessageAssessment toDomain() {
-            return new ReturnedMessageTopicsResult.MessageAssessment(
-                    messageRef,
-                    priority,
-                    priorityReason,
-                    replyRequired,
-                    replyReason,
-                    actionRequired,
-                    actionReason);
-        }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

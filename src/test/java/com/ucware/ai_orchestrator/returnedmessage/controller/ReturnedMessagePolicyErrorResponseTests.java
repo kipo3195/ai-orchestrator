@@ -420,6 +420,40 @@ class ReturnedMessagePolicyErrorResponseTests {
     }
 
     @Test
+    void executionResultAcceptsNestedMessagesAndPreservesReasons() throws Exception {
+        when(handleExecutionResult.handle(any(), any(), any(), any(), any()))
+                .thenReturn(ReturnedMessageOperationResult.rejected("test"));
+        mockMvc.perform(post("/api/v1/returned-messages/request-1/execution-results")
+                        .header("X-Tenant-Id", "tenant-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "eventId": "event-1", "tenantId": "tenant-1", "userId": "user-1",
+                                  "executionId": "execution-1", "taskType": "RETURNED_MESSAGE_TOPICS",
+                                  "contractVersion": 2, "status": "SUCCEEDED",
+                                  "result": {
+                                    "topics": [{"topic": "1123", "summary": "제목만 제공됨",
+                                      "messages": [{"messageRef": "message-1", "subject": "1123",
+                                        "priority": "UNKNOWN", "priorityReason": "판단 불가",
+                                        "replyRequired": false, "replyReason": "명시적 회신 요청 없음",
+                                        "actionRequired": true, "actionReason": "확인 요청"}]}],
+                                    "generatedAt": "2026-11-27T01:00:00Z"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk());
+        var captor = org.mockito.ArgumentCaptor.forClass(AiExecutionGateway.ExecutionResult.class);
+        verify(handleExecutionResult).handle(
+                org.mockito.ArgumentMatchers.eq("tenant-1"), org.mockito.ArgumentMatchers.eq("user-1"),
+                org.mockito.ArgumentMatchers.eq("request-1"), org.mockito.ArgumentMatchers.eq("execution-1"),
+                captor.capture());
+        var message = captor.getValue().result().messageAssessments().get(0);
+        org.assertj.core.api.Assertions.assertThat(message.subject()).isEqualTo("1123");
+        org.assertj.core.api.Assertions.assertThat(message.priorityReason()).isEqualTo("판단 불가");
+        org.assertj.core.api.Assertions.assertThat(message.actionRequired()).isTrue();
+    }
+
+    @Test
     void executionResultAcceptsMatchingTenantScope() throws Exception {
         when(handleExecutionResult.handle(any(), any(), any(), any(), any()))
                 .thenReturn(ReturnedMessageOperationResult.rejected("test"));

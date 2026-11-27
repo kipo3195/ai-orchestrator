@@ -8,6 +8,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -20,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ucware.ai_orchestrator.global.infrastructure.http.ServiceApiKeyProperties;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.sun.net.httpserver.HttpServer;
+import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsResult;
 import com.ucware.ai_orchestrator.result.domain.DeliveryEvent;
 import com.ucware.ai_orchestrator.result.domain.DeliveryTarget;
 import com.ucware.ai_orchestrator.result.domain.LifecycleEvent;
@@ -93,7 +95,12 @@ class RestResultDeliveryClientTests {
                                     "TOPICS_READY",
                                     Instant.parse("2026-11-24T06:08:49.955831Z")),
                             null,
-                            Map.of("message", "hello")));
+                            new ReturnedMessageTopicsResult(
+                                    List.of(),
+                                    List.of(new ReturnedMessageTopicsResult.MessageAssessment(
+                                            "message-1", "쪽지 제목", ReturnedMessageTopicsResult.Priority.NORMAL,
+                                            null, false, null, false, null)),
+                                    Instant.parse("2026-11-24T06:08:49.955831Z"))));
 
             assertThat(requestPath.get()).isEqualTo("/ai/deliveries");
             assertThat(apiKey.get()).isEqualTo("test-ws-key");
@@ -107,7 +114,10 @@ class RestResultDeliveryClientTests {
                     "\"revision\":3",
                     "\"state\":\"TOPICS_READY\"",
                     "\"occurredAt\":\"2026-11-24T06:08:49.955831Z\"",
-                    "\"message\":\"hello\"");
+                    "\"messageRef\":\"message-1\"");
+            assertThat(new ObjectMapper().readTree(requestBody.get())
+                    .path("payload").path("messageAssessments").get(0).path("subject").asText())
+                    .isEqualTo("쪽지 제목");
         } finally {
             server.stop(0);
         }

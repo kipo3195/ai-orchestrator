@@ -64,10 +64,9 @@ class OmniAiReturnedMessageExecutionClientTests {
                     "topics": [{
                       "topic": "제목 1",
                       "summary": "요약",
-                      "source_message_refs": ["message-1", "message-2"]
-                    }],
-                    "message_assessments": [{
+                      "messages": [{
                       "message_ref": "message-1",
+                      "subject": "제목 1",
                       "priority": "UNKNOWN",
                       "priority_reason": "제목만으로 우선순위를 판단하기 어렵습니다.",
                       "reply_required": true,
@@ -82,6 +81,7 @@ class OmniAiReturnedMessageExecutionClientTests {
                       "reply_reason": "명시적인 회신 요청 없음",
                       "action_required": false,
                       "action_reason": "명시적인 작업 요청 없음"
+                    }]
                     }],
                     "generated_at": "2026-10-28T01:00:00Z"
                   }
@@ -99,6 +99,9 @@ class OmniAiReturnedMessageExecutionClientTests {
             assertThat(result.result().messageAssessments()).hasSize(2);
             assertThat(result.result().messageAssessments().get(0).messageRef())
                     .isEqualTo("message-1");
+            assertThat(result.result().messageAssessments().get(0).subject())
+                    .isEqualTo("제목 1");
+            assertThat(result.result().messageAssessments().get(1).subject()).isNull();
             assertThat(result.result().messageAssessments().get(0).priority())
                     .isEqualTo(ReturnedMessageTopicsResult.Priority.UNKNOWN);
             assertThat(result.result().messageAssessments().get(0).replyRequired()).isTrue();
@@ -153,8 +156,12 @@ class OmniAiReturnedMessageExecutionClientTests {
                   "contract_version": 2,
                   "status": "SUCCEEDED",
                   "result": {
-                    "topics": [],
-                    "message_assessments": [],
+                    "topics": [{"topic": "1123", "summary": "세부 정보 부족", "messages": [{
+                      "message_ref": "message-1", "subject": "1123", "priority": "UNKNOWN",
+                      "priority_reason": "판단 불가", "reply_required": false,
+                      "reply_reason": "명시적 회신 요청 없음", "action_required": false,
+                      "action_reason": "명시적 처리 요청 없음"
+                    }]}],
                     "generated_at": "2026-10-28T01:00:00Z"
                   }
                 }
@@ -165,7 +172,7 @@ class OmniAiReturnedMessageExecutionClientTests {
                     .reconcile("tenant-1", "execution-1");
 
             assertThat(result.status()).isEqualTo(AiExecutionGateway.Status.SUCCEEDED);
-            assertThat(result.result().topics()).isEmpty();
+            assertThat(result.result().topics()).hasSize(1);
             assertThat(recorded.method.get()).isEqualTo("GET");
             assertThat(recorded.path.get())
                     .isEqualTo("/ai/v1/returned-message-topics/executions/execution-1");

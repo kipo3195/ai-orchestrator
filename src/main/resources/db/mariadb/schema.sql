@@ -159,3 +159,23 @@ CREATE TABLE IF NOT EXISTS returned_message_selection_item (
 
 -- ALTER TABLE returned_message_request
 --     ADD COLUMN IF NOT EXISTS result_payload TEXT;
+
+
+CREATE TABLE IF NOT EXISTS returned_message_assessment_reason (
+    tenant_id VARCHAR(100) NOT NULL,
+    request_id VARCHAR(100) NOT NULL,
+    execution_id VARCHAR(100) NOT NULL,
+    message_ref VARCHAR(200) NOT NULL,
+    priority VARCHAR(20) NOT NULL,
+    priority_reason VARCHAR(50) NULL,
+    reply_required BOOLEAN NOT NULL,
+    reply_reason VARCHAR(50) NULL,
+    action_required BOOLEAN NOT NULL,
+    action_reason VARCHAR(50) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (tenant_id, request_id, execution_id, message_ref),
+    CONSTRAINT fk_returned_message_assessment_reason_request
+        FOREIGN KEY (tenant_id, request_id)
+        REFERENCES returned_message_request (tenant_id, request_id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

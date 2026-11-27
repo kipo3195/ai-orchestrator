@@ -262,6 +262,7 @@ class ReturnedMessageExecutionResultServiceTests {
                         List.of("message-1"))),
                 List.of(new ReturnedMessageTopicsResult.MessageAssessment(
                         "message-1",
+                        "제목 1",
                         ReturnedMessageTopicsResult.Priority.NORMAL,
                         null,
                         true,

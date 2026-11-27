@@ -492,7 +492,8 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
             String executionId,
             ReturnedMessageTopicsResult result,
             String deliveryId) {
-        return jdbcClient.sql("""
+        return Boolean.TRUE.equals(transactionTemplate.execute(status -> {
+            boolean transitioned = jdbcClient.sql("""
                         UPDATE returned_message_request
                         SET status = 'DELIVERY_PENDING',
                             result_payload = :resultPayload,
@@ -517,7 +518,46 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                 .param("requestId", requestId)
                 .param("executionId", executionId)
                 .update() == 1;
+            if (transitioned) {
+                persistAssessmentReasons(tenantId, requestId, executionId, result);
+            }
+            return transitioned;
+        }));
     }
+
+    private void persistAssessmentReasons(
+            String tenantId, String requestId, String executionId,
+            ReturnedMessageTopicsResult result) {
+        for (var assessment : result.messageAssessments()) {
+            if (!assessment.hasRelevantJudgment()) {
+                continue;
+            }
+            var message = assessment.withRelevantReasons();
+            jdbcClient.sql("""
+                    INSERT INTO returned_message_assessment_reason (
+                        tenant_id, request_id, execution_id, message_ref,
+                        priority, priority_reason, reply_required, reply_reason,
+                        action_required, action_reason
+                    ) VALUES (
+                        :tenantId, :requestId, :executionId, :messageRef,
+                        :priority, :priorityReason, :replyRequired, :replyReason,
+                        :actionRequired, :actionReason
+                    )
+                    """)
+                    .param("tenantId", tenantId)
+                    .param("requestId", requestId)
+                    .param("executionId", executionId)
+                    .param("messageRef", message.messageRef())
+                    .param("priority", message.priority().name())
+                    .param("priorityReason", message.priorityReason(), java.sql.Types.VARCHAR)
+                    .param("replyRequired", message.replyRequired())
+                    .param("replyReason", message.replyReason(), java.sql.Types.VARCHAR)
+                    .param("actionRequired", message.actionRequired())
+                    .param("actionReason", message.actionReason(), java.sql.Types.VARCHAR)
+                    .update();
+        }
+    }
+
 
     @Override
     public boolean executionFailed(
@@ -872,6 +912,7 @@ public class JdbcReturnedMessageRepository implements ReturnedMessageRepository 
                                     messageRef,
                                     new ReturnedMessageTopicsResult.MessageAssessment(
                                             messageRef,
+                                            null,
                                             topic.priority(),
                                             topic.priorityReason(),
                                             topic.replyRequired(),

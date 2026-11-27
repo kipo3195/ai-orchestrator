@@ -62,6 +62,8 @@ v2 결과는 `topics`, 메시지별 `messageAssessments`, `generatedAt`로 구�
 
 Client 공개 상태는 내부 상태와 구분한다. DELIVERY_PENDING/COMPLETED는 TOPICS_READY로 매핑되며 공개 상태가 바뀌지 않는 내부 전이에서는 event ID·revision을 유지한다.
 
+Client 결과 payload는 `topics`, `counts`, `generatedAt`을 포함한다. `counts`는 Orchestrator가 전달 대상 `topics[].messages[]`를 기준으로 계산한다. `total`은 전체 메시지 수, `urgent`는 priority가 URGENT인 메시지 수, `replyRequired`와 `actionRequired`는 각각 해당 값이 true인 메시지 수, `other`는 priority가 UNKNOWN인 메시지 수다. 각 항목은 독립적으로 집계하므로 중복될 수 있다.
+
 ## 만료와 복구
 
 확인의 유효성은 sweeper 실행 여부와 관계없이 DB 만료 조건으로 결정한다. sweeper는 batch 크기 안에서 만료 상태를 materialize한다.
