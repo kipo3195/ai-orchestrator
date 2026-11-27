@@ -12,8 +12,12 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ucware.ai_orchestrator.global.infrastructure.http.ServiceApiKeyProperties;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.sun.net.httpserver.HttpServer;
 import com.ucware.ai_orchestrator.result.domain.DeliveryEvent;
@@ -22,6 +26,7 @@ import com.ucware.ai_orchestrator.result.domain.LifecycleEvent;
 import com.ucware.ai_orchestrator.result.infrastructure.config.ConfiguredRealtimeInstanceEndpointResolver;
 import com.ucware.ai_orchestrator.result.infrastructure.config.ResultRouterProperties;
 
+@ExtendWith(OutputCaptureExtension.class)
 class RestResultDeliveryClientTests {
 
     @Test
@@ -43,11 +48,13 @@ class RestResultDeliveryClientTests {
     }
 
     @Test
-    void postsDeliveryEventToConfiguredOwnerEndpoint() throws IOException {
+    void postsDeliveryEventToConfiguredOwnerEndpoint(CapturedOutput output) throws IOException {
         AtomicReference<String> requestBody = new AtomicReference<>();
+        AtomicReference<String> apiKey = new AtomicReference<>();
         AtomicReference<String> requestPath = new AtomicReference<>();
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/ai/deliveries", exchange -> {
+            apiKey.set(exchange.getRequestHeaders().getFirst("X-Test-WS-Key"));
             requestPath.set(exchange.getRequestURI().getPath());
             requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             exchange.sendResponseHeaders(204, -1);
@@ -69,7 +76,9 @@ class RestResultDeliveryClientTests {
                     new ConfiguredRealtimeInstanceEndpointResolver(properties),
                     new ObjectMapper()
                             .findAndRegisterModules()
-                            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS));
+                            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS),
+                    new ServiceApiKeyProperties(
+                            new ServiceApiKeyProperties.ApiKey("X-Test-WS-Key", "test-ws-key"), null));
 
             client.deliver(
                     new DeliveryTarget("connection-1", "realtime-2"),
@@ -87,6 +96,8 @@ class RestResultDeliveryClientTests {
                             Map.of("message", "hello")));
 
             assertThat(requestPath.get()).isEqualTo("/ai/deliveries");
+            assertThat(apiKey.get()).isEqualTo("test-ws-key");
+            assertThat(output).doesNotContain("http://127.0.0.1:", "test-ws-key", "uri=");
             assertThat(requestBody.get()).contains(
                     "\"executionId\":\"execution-1\"",
                     "\"connectionId\":\"connection-1\"",

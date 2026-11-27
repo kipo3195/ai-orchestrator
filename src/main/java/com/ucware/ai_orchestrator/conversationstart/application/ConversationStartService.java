@@ -177,14 +177,15 @@ public class ConversationStartService
                         "CONVERSATION_START_COMPLETED",
                         result));
             } catch (RuntimeException deliveryError) {
-                logger.error("Conversation start result delivery failed. executionId={}",
-                        executionId, deliveryError);
+                logger.error("Conversation start result delivery failed. executionId={}, errorType={}",
+                        executionId, deliveryError.getClass().getSimpleName());
             }
         } catch (Exception e) {
             synchronized (this) {
                 execution.fail();
             }
-            logger.error("Conversation start AI failed. executionId={}", executionId, e);
+            logger.error("Conversation start AI failed. executionId={}, errorType={}",
+                    executionId, e.getClass().getSimpleName());
         }
     }
 

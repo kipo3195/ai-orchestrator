@@ -13,16 +13,21 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ucware.ai_orchestrator.global.infrastructure.http.ServiceApiKeyProperties;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGateway;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageSelection;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsResult;
 import com.ucware.ai_orchestrator.returnedmessage.infrastructure.config.ReturnedMessageAiProperties;
 
+@ExtendWith(OutputCaptureExtension.class)
 class OmniAiReturnedMessageExecutionClientTests {
 
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
@@ -105,6 +110,7 @@ class OmniAiReturnedMessageExecutionClientTests {
             assertThat(recorded.method.get()).isEqualTo("POST");
             assertThat(recorded.path.get())
                     .isEqualTo("/ai/v1/returned-message-topics/generate");
+            assertThat(recorded.headers.get().getFirst("X-Test-AI-Key")).isEqualTo("test-ai-key");
             assertThat(recorded.headers.get().getFirst("X-Tenant-Id"))
                     .isEqualTo("tenant-1");
             assertThat(recorded.headers.get().getFirst("Content-Type"))
@@ -163,6 +169,7 @@ class OmniAiReturnedMessageExecutionClientTests {
             assertThat(recorded.method.get()).isEqualTo("GET");
             assertThat(recorded.path.get())
                     .isEqualTo("/ai/v1/returned-message-topics/executions/execution-1");
+            assertThat(recorded.headers.get().getFirst("X-Test-AI-Key")).isEqualTo("test-ai-key");
             assertThat(recorded.headers.get().getFirst("X-Tenant-Id"))
                     .isEqualTo("tenant-1");
         } finally {
@@ -184,9 +191,9 @@ class OmniAiReturnedMessageExecutionClientTests {
     }
 
     @Test
-    void mapsExplicitStartValidationRejectionToSafeFailure() throws Exception {
+    void mapsExplicitStartValidationRejectionToSafeFailure(CapturedOutput output) throws Exception {
         HttpServer server = server(422, """
-                {"detail":"internal validation information"}
+                {"detail":"http://private-service.invalid/internal test-secret-response"}
                 """, new RecordedRequest());
 
         try {
@@ -195,6 +202,8 @@ class OmniAiReturnedMessageExecutionClientTests {
                             AiExecutionGateway.Status.FAILED,
                             null,
                             "AI_EXECUTION_REQUEST_INVALID"));
+            assertThat(output).contains("status=422")
+                    .doesNotContain("private-service.invalid", "test-secret-response", "responseBody=");
         } finally {
             server.stop(0);
         }
@@ -257,7 +266,9 @@ class OmniAiReturnedMessageExecutionClientTests {
                 "/ai/v1/returned-message-topics/executions/{executionId}",
                 Duration.ofSeconds(1),
                 Duration.ofSeconds(1));
-        return new OmniAiReturnedMessageExecutionClient(properties, objectMapper);
+        return new OmniAiReturnedMessageExecutionClient(properties, objectMapper,
+                new ServiceApiKeyProperties(null,
+                        new ServiceApiKeyProperties.ApiKey("X-Test-AI-Key", "test-ai-key")));
     }
 
     private AiExecutionGateway.ExecutionCommand command() {

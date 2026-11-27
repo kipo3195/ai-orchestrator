@@ -19,6 +19,7 @@ import com.ucware.ai_orchestrator.result.application.port.ResultDeliveryPort;
 import com.ucware.ai_orchestrator.result.domain.DeliveryEvent;
 import com.ucware.ai_orchestrator.result.domain.DeliveryTarget;
 import com.ucware.ai_orchestrator.result.infrastructure.config.ResultRouterProperties;
+import com.ucware.ai_orchestrator.global.infrastructure.http.ServiceApiKeyProperties;
 
 @Component
 public class RestResultDeliveryClient implements ResultDeliveryPort {
@@ -29,14 +30,17 @@ public class RestResultDeliveryClient implements ResultDeliveryPort {
     private final ObjectMapper objectMapper;
     private final RealtimeInstanceEndpointResolver endpointResolver;
     private final HttpClient httpClient;
+    private final ServiceApiKeyProperties.ApiKey apiKey;
 
     public RestResultDeliveryClient(
             ResultRouterProperties properties,
             RealtimeInstanceEndpointResolver endpointResolver,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            ServiceApiKeyProperties apiKeys) {
         this.properties = properties;
         this.endpointResolver = endpointResolver;
         this.objectMapper = objectMapper;
+        this.apiKey = apiKeys.ws();
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(properties.delivery().connectTimeout())
                 .build();
@@ -45,17 +49,16 @@ public class RestResultDeliveryClient implements ResultDeliveryPort {
     @Override
     public void deliver(DeliveryTarget target, DeliveryEvent event) {
         URI deliveryUri = deliveryUri(target.ownerInstanceId());
-        HttpRequest request = HttpRequest.newBuilder(deliveryUri)
+        HttpRequest request = apiKey.applyTo(HttpRequest.newBuilder(deliveryUri)
                 .timeout(properties.delivery().requestTimeout())
                 .header("Content-Type", "application/json")
-                .header("Accept", "application/json")
+                .header("Accept", "application/json"))
                 .POST(HttpRequest.BodyPublishers.ofString(writeBody(event)))
                 .build();
 
         logger.debug(
-                "Delivering AI result. ownerInstanceId={}, executionId={}, eventId={}, eventType={}, uri={}",
-                target.ownerInstanceId(), event.executionId(), event.eventId(), event.eventType(),
-                deliveryUri);
+                "Delivering AI result. ownerInstanceId={}, executionId={}, eventId={}, eventType={}",
+                target.ownerInstanceId(), event.executionId(), event.eventId(), event.eventType());
         long startedAt = System.nanoTime();
 
         try {
@@ -65,9 +68,9 @@ public class RestResultDeliveryClient implements ResultDeliveryPort {
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 logger.warn(
                         "AI result delivery returned a non-success response. ownerInstanceId={}, "
-                                + "executionId={}, eventId={}, eventType={}, status={}, elapsedMs={}, uri={}",
+                                + "executionId={}, eventId={}, eventType={}, status={}, elapsedMs={}",
                         target.ownerInstanceId(), event.executionId(), event.eventId(), event.eventType(),
-                        response.statusCode(), elapsedMillis, deliveryUri);
+                        response.statusCode(), elapsedMillis);
                 throw new ResultRoutingException(
                         "Realtime delivery returned HTTP " + response.statusCode());
             }
@@ -80,16 +83,16 @@ public class RestResultDeliveryClient implements ResultDeliveryPort {
             Thread.currentThread().interrupt();
             logger.warn(
                     "AI result delivery was interrupted. ownerInstanceId={}, executionId={}, "
-                            + "eventId={}, eventType={}, elapsedMs={}, uri={}",
+                            + "eventId={}, eventType={}, elapsedMs={}, errorType={}",
                     target.ownerInstanceId(), event.executionId(), event.eventId(), event.eventType(),
-                    elapsedMillis(startedAt), deliveryUri, e);
+                    elapsedMillis(startedAt), e.getClass().getSimpleName());
             throw new ResultRoutingException("Realtime delivery was interrupted", e);
         } catch (IOException e) {
             logger.warn(
                     "AI result delivery request failed. ownerInstanceId={}, executionId={}, "
-                            + "eventId={}, eventType={}, elapsedMs={}, uri={}",
+                            + "eventId={}, eventType={}, elapsedMs={}, errorType={}",
                     target.ownerInstanceId(), event.executionId(), event.eventId(), event.eventType(),
-                    elapsedMillis(startedAt), deliveryUri, e);
+                    elapsedMillis(startedAt), e.getClass().getSimpleName());
             throw new ResultRoutingException("Realtime delivery request failed", e);
         }
     }

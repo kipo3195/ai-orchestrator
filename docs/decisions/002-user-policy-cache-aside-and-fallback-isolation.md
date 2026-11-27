@@ -1,6 +1,8 @@
 # 002. User Policy Cache-Aside and Fallback Isolation
 
-Status: Accepted
+## 현재 적용 범위
+
+Cache-aside·negative cache·process-local semaphore는 구현되어 있다. 
 
 ## Context
 
@@ -187,5 +189,3 @@ Circuit breaker와 retry가 필요한 Omni AI 호출의 resilience 정책은 별
 ## Related
 
 - [001. Policy Persistence Access](001-policy-persistence-access.md)
-- [Policy Immutable Snapshot Refresh](../engineering/001-policy-immutable-snapshot-refresh.md)
-- [User Policy Cache-Aside Implementation](../engineering/002-user-policy-cache-aside-implementation.md)

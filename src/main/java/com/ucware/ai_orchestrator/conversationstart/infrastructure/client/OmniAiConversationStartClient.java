@@ -18,6 +18,7 @@ import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStartCont
 import com.ucware.ai_orchestrator.conversationstart.domain.ConversationStartResult;
 import com.ucware.ai_orchestrator.conversationstart.domain.ConversationSuggestionKind;
 import com.ucware.ai_orchestrator.conversationstart.domain.SuggestionItem;
+import com.ucware.ai_orchestrator.global.infrastructure.http.ServiceApiKeyProperties;
 
 @Component
 public class OmniAiConversationStartClient implements ConversationStartAiPort {
@@ -29,12 +30,15 @@ public class OmniAiConversationStartClient implements ConversationStartAiPort {
     private final URI generateUri;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final ServiceApiKeyProperties.ApiKey apiKey;
 
     public OmniAiConversationStartClient(@Value("${omni-ai.base-url}") String baseUrl,
-                                         ObjectMapper objectMapper) {
+                                         ObjectMapper objectMapper,
+                                         ServiceApiKeyProperties apiKeys) {
         this.generateUri = URI.create(baseUrl.replaceAll("/+$", "") + GENERATE_PATH);
         this.httpClient = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
         this.objectMapper = objectMapper;
+        this.apiKey = apiKeys.ai();
     }
 
     @Override
@@ -48,10 +52,10 @@ public class OmniAiConversationStartClient implements ConversationStartAiPort {
                 context.suggestionKind().name(), List.of(), new RequestOptions(5, 100, "ko"));
 
         try {
-            HttpRequest request = HttpRequest.newBuilder(generateUri)
+            HttpRequest request = apiKey.applyTo(HttpRequest.newBuilder(generateUri)
                     .timeout(REQUEST_TIMEOUT)
                     .header("Content-Type", "application/json")
-                    .header("Accept", "application/json")
+                    .header("Accept", "application/json"))
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody)))
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());

@@ -62,8 +62,8 @@ public class ReturnedMessageMaintenanceService {
             try {
                 recover(lifecycle);
             } catch (RuntimeException exception) {
-                logger.warn("Returned Message recovery attempt failed. requestId={}",
-                        lifecycle.requestId(), exception);
+                logger.warn("Returned Message recovery attempt failed. requestId={}, errorType={}",
+                        lifecycle.requestId(), exception.getClass().getSimpleName());
             } finally {
                 repository.releaseClaim(lifecycle.tenantId(), lifecycle.requestId(), workerId);
             }

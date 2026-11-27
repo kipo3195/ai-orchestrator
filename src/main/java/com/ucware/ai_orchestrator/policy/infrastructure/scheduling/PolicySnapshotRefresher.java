@@ -34,7 +34,8 @@ public class PolicySnapshotRefresher {
         try {
             refresh();
         } catch (RuntimeException exception) {
-            logger.warn("AI policy snapshot refresh failed; keeping the last valid snapshot", exception);
+            logger.warn("AI policy snapshot refresh failed; keeping the last valid snapshot. errorType={}",
+                    exception.getClass().getSimpleName());
         }
     }
 

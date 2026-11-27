@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.Import;
@@ -13,6 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import com.ucware.ai_orchestrator.policy.domain.AiFeature;
 import com.ucware.ai_orchestrator.policy.domain.FeaturePolicyKey;
 
+@ActiveProfiles("test")
 @JdbcTest
 @Import(JdbcPolicySnapshotRepository.class)
 class JdbcPolicySnapshotRepositoryTests {

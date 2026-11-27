@@ -1,6 +1,8 @@
 # 003. Returned Message Lifecycle Persistence and Concurrency Control
 
-Status: Proposed
+## 현재 적용 범위
+
+DB lifecycle·selection snapshot·조건부 전이·만료·claim은 구현되어 있다. 현재 동작과 한계는 [Returned Message](../features/returned-message.md)를 따른다.
 
 ## Context
 
@@ -21,7 +23,7 @@ USER_RETURNED
 
 반면 Desktop Presence의 모든 상태 변경을 AI Orchestrator의 lifecycle로 저장할 필요는 없다. 지원하지 않는 connection, 짧은 부재와 이미 만료된 Trigger처럼 AI 실행 후보가 되지 않는 요청까지 저장하면 상태 이력과 write 부하만 증가한다.
 
-이 결정은 Returned Message lifecycle을 어디에 저장하고, 여러 instance 사이에서 lifecycle 생성과 상태 전이 경쟁을 어떻게 제어할지를 다룬다. Omni AI Server에 요청을 전달한 이후의 실행 멱등성, 취소와 복구는 [004. AI Execution Dispatch, Idempotency, Cancellation and Recovery](004-ai-execution-dispatch-idempotency-and-recovery.md)에서 별도로 결정한다.
+이 결정은 Returned Message lifecycle을 어디에 저장하고, 여러 instance 사이에서 lifecycle 생성과 상태 전이 경쟁을 어떻게 제어할지를 다룬다. 
 
 ## Decision Drivers
 
@@ -77,16 +79,13 @@ Lifecycle INSERT
 
 Conditional UPDATE
 → 사용자 응답, 만료와 후속 단계의 상태 전이 경쟁 제어
-
-External AI execution
-→ Decision 004의 공통 실행 계약 적용
 ```
 
 ### Persistence threshold
 
 모든 Presence 변경을 저장하지 않는다. Messenger Client Ingress가 적용 대상 connection과 Presence 전이를 확정해 만든 source-qualified Event를 입력으로 받는다. AI Orchestrator는 필수 routing 값과 시간 관계, 부재 구간, Trigger 유효기간과 실행 Policy를 확인해 AI 실행 후보가 된 요청만 lifecycle 생성을 시도하며, legacy `connectionType`의 값별 의미는 재판정하지 않는다.
 
-Lifecycle은 Message Query나 Realtime delivery처럼 외부 I/O를 시작하기 전에 생성한다. 동일 lifecycle을 새로 생성할 권한을 얻은 처리자만 최초 작업을 진행한다. 정확한 eligibility 검사 순서, 재평가 시점과 중복 요청 응답은 [003. Returned Message Lifecycle Processing](../engineering/003-returned-message-lifecycle-processing.md)에서 정의한다.
+Lifecycle은 Message Query나 Realtime delivery처럼 외부 I/O를 시작하기 전에 생성한다. 동일 lifecycle을 새로 생성할 권한을 얻은 처리자만 최초 작업을 진행한다. 정확한 eligibility 검사 순서, 재평가 시점과 중복 요청 응답은 [003. Returned Message Lifecycle Processing](../features/returned-message.md)에서 정의한다.
 
 ### Lifecycle creation idempotency
 
@@ -154,7 +153,7 @@ Lifecycle insert와 각 conditional update는 짧은 DB transaction으로 실행
 - lifecycle 상태의 process 재시작 후 복원
 - 사용자 확인 전 확정된 source item key와 nullable subject snapshot의 process 재시작 후 복원
 
-이 결정만으로 Omni AI Server의 실행이나 Realtime delivery가 정확히 한 번 수행되는 것은 보장하지 않는다. 외부 호출의 불확실한 결과, 실행 취소, 재시도와 복구는 Decision 004의 stable execution ID와 reconciliation 계약을 적용한다.
+이 결정만으로 Omni AI Server의 실행이나 Realtime delivery가 정확히 한 번 수행되는 것은 보장하지 않는다.
 
 ## Consequences
 
@@ -173,7 +172,6 @@ Lifecycle insert와 각 conditional update는 짧은 DB transaction으로 실행
 - Selection과 selection item에 저장된 key 및 subject snapshot의 만료 데이터 정리와 retention 관리가 필요하다.
 - Unique constraint 충돌과 conditional update `0`건을 정상적인 멱등 결과 또는 계약 위반으로 구분해야 한다.
 - DB 시각을 사용하는 SQL과 만료 처리에 대한 integration test가 필요하다.
-- 외부 호출의 멱등성과 복구를 위해 Decision 004의 Omni AI Server 계약이 추가로 필요하다.
 - Sweeper 주기만큼 논리적 만료 상태의 materialization이 지연될 수 있다.
 
 ## Non-goals
@@ -189,6 +187,4 @@ Lifecycle insert와 각 conditional update는 짧은 DB transaction으로 실행
 ## Related
 
 - [001. Policy Persistence Access](001-policy-persistence-access.md)
-- [004. AI Execution Dispatch, Idempotency, Cancellation and Recovery](004-ai-execution-dispatch-idempotency-and-recovery.md)
-- [003. Returned Message Lifecycle Processing](../engineering/003-returned-message-lifecycle-processing.md)
-- [Package Structure](../architecture/package-structure.md)
+- [003. Returned Message Lifecycle Processing](../features/returned-message.md)

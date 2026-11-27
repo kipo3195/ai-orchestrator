@@ -18,21 +18,6 @@ public class ReturnedMessagePortsConfiguration {
         return request -> ReturnedMessagePermissionChecker.Decision.ALLOWED;
     }
 
-    // 위와 동일함
-    // @Bean
-    // @ConditionalOnMissingBean
-    // ReturnedMessagePermissionChecker allowingReturnedMessagePermissionChecker() {
-    //     ReturnedMessagePermissionChecker checker =
-    //             new ReturnedMessagePermissionChecker() {
-    //                 @Override
-    //                 public Decision evaluate(PermissionRequest request) {
-    //                     return Decision.ALLOWED;
-    //                 }
-    //             };
-
-    //     return checker;
-    // }
-
     @Bean
     @ConditionalOnMissingBean
     ReturnedMessageQuery unavailableReturnedMessageQuery() {

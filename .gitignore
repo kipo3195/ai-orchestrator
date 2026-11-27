@@ -45,3 +45,6 @@ deploy/app.jar
 deploy/.env.example
 .DS_Store
 src/main/resources/config/result-router-local.properties
+
+# Manually prepared local H2 database
+/.local/

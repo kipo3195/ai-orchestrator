@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ucware.ai_orchestrator.global.infrastructure.http.ServiceApiKeyProperties;
 import com.sun.net.httpserver.HttpServer;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageQuery.MessageSelection;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageQuery.MessageSelectionQuery;
@@ -36,6 +37,8 @@ class WebSocketServiceReturnedMessageQueryClientTests {
     private static final Instant RETURNED_AT = Instant.parse("2026-10-20T01:00:00Z");
     private static final Instant SELECTED_AT = Instant.parse("2026-10-20T01:00:01Z");
     private static final Instant EXPIRES_AT = Instant.parse("2026-10-20T01:05:01Z");
+
+    private final AtomicReference<com.sun.net.httpserver.Headers> requestHeaders = new AtomicReference<>();
 
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
@@ -76,6 +79,8 @@ class WebSocketServiceReturnedMessageQueryClientTests {
             assertThat(result).isEqualTo(new MessageSelection(
                     "period-1", 2, "selection-1", SELECTED_AT, EXPIRES_AT));
             assertThat(requestMethod.get()).isEqualTo("POST");
+            assertThat(requestHeaders.get().getFirst("X-Test-WS-Key")).isEqualTo("test-ws-key");
+            assertThat(requestHeaders.get().getFirst("X-Service-Key")).isNull();
             assertThat(requestPath.get()).isEqualTo("/rest/his_note");
             assertThat(objectMapper.readTree(requestBody.get())).isEqualTo(objectMapper.readTree("""
                     {
@@ -167,6 +172,7 @@ class WebSocketServiceReturnedMessageQueryClientTests {
             AtomicReference<String> requestBody) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/rest/his_note", exchange -> {
+            requestHeaders.set(exchange.getRequestHeaders());
             if (requestMethod != null) {
                 requestMethod.set(exchange.getRequestMethod());
             }
@@ -197,7 +203,9 @@ class WebSocketServiceReturnedMessageQueryClientTests {
                 Duration.ofSeconds(2),
                 Duration.ofMinutes(5));
         return new WebSocketServiceReturnedMessageQueryClient(
-                properties, selectionRepository, objectMapper);
+                properties, selectionRepository, objectMapper,
+                new ServiceApiKeyProperties(
+                        new ServiceApiKeyProperties.ApiKey("X-Test-WS-Key", "test-ws-key"), null));
     }
 
     private MessageSelectionQuery query() {

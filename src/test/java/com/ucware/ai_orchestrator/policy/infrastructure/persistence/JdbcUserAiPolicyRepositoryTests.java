@@ -3,6 +3,7 @@ package com.ucware.ai_orchestrator.policy.infrastructure.persistence;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.Import;
@@ -10,6 +11,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.ucware.ai_orchestrator.policy.domain.UserAiPolicy;
 
+@ActiveProfiles("test")
 @JdbcTest
 @Import(JdbcUserAiPolicyRepository.class)
 class JdbcUserAiPolicyRepositoryTests {

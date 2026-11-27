@@ -3,6 +3,7 @@ package com.ucware.ai_orchestrator.returnedmessage.infrastructure.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ucware.ai_orchestrator.global.infrastructure.http.ServiceApiKeyProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -47,7 +48,7 @@ class ReturnedMessageAiClientActivationTests {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @EnableConfigurationProperties(ReturnedMessageAiProperties.class)
+    @EnableConfigurationProperties({ReturnedMessageAiProperties.class, ServiceApiKeyProperties.class})
     @Import({
             OmniAiReturnedMessageExecutionClient.class,
             ReturnedMessagePortsConfiguration.class

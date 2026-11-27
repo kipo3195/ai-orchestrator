@@ -154,8 +154,8 @@ public class ReturnedMessageExecutionResultService
                 }
             }
         } catch (RuntimeException exception) {
-            logger.warn("Returned Message result delivery remains pending. requestId={}, executionId={}",
-                    lifecycle.requestId(), lifecycle.executionId(), exception);
+            logger.warn("Returned Message result delivery remains pending. requestId={}, executionId={}, errorType={}",
+                    lifecycle.requestId(), lifecycle.executionId(), exception.getClass().getSimpleName());
         }
     }
 

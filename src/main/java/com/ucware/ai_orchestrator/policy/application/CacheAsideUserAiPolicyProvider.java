@@ -45,7 +45,8 @@ public class CacheAsideUserAiPolicyProvider implements UserAiPolicyProvider {
                 return UserAiPolicyResolution.resolved(cachedStatus.get());
             }
         } catch (RuntimeException exception) {
-            logger.warn("User AI policy cache read failed; using DB fallback", exception);
+            logger.warn("User AI policy cache read failed; using DB fallback. errorType={}",
+                    exception.getClass().getSimpleName());
         }
 
         // Redis cache miss 또는 read failure 이후 DB fallback 진입을 시도
@@ -64,7 +65,8 @@ public class CacheAsideUserAiPolicyProvider implements UserAiPolicyProvider {
                     .map(UserAiPolicyStatus::from)
                     .orElse(UserAiPolicyStatus.NOT_CONFIGURED);
         } catch (RuntimeException exception) {
-            logger.warn("User AI policy DB fallback failed", exception);
+            logger.warn("User AI policy DB fallback failed. errorType={}",
+                    exception.getClass().getSimpleName());
             return UserAiPolicyResolution.unavailable();
         } finally {
             // 성공 또는 실패와 관계없이 획득한 permit을 반환한다.
@@ -83,7 +85,8 @@ public class CacheAsideUserAiPolicyProvider implements UserAiPolicyProvider {
         try {
             cache.put(tenantId, userId, status);
         } catch (RuntimeException exception) {
-            logger.warn("User AI policy cache write failed; using the DB result", exception);
+            logger.warn("User AI policy cache write failed; using the DB result. errorType={}",
+                    exception.getClass().getSimpleName());
         }
     }
 

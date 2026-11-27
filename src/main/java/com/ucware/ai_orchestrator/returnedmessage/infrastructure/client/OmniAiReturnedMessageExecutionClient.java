@@ -23,6 +23,7 @@ import com.ucware.ai_orchestrator.returnedmessage.application.port.AiExecutionGa
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageSelection;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsResult;
 import com.ucware.ai_orchestrator.returnedmessage.infrastructure.config.ReturnedMessageAiProperties;
+import com.ucware.ai_orchestrator.global.infrastructure.http.ServiceApiKeyProperties;
 
 @Component
 @ConditionalOnProperty(
@@ -41,12 +42,15 @@ public class OmniAiReturnedMessageExecutionClient implements AiExecutionGateway 
     private final ReturnedMessageAiProperties properties;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    private final ServiceApiKeyProperties.ApiKey apiKey;
 
     public OmniAiReturnedMessageExecutionClient(
             ReturnedMessageAiProperties properties,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            ServiceApiKeyProperties apiKeys) {
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.apiKey = apiKeys.ai();
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(properties.connectTimeout())
                 .build();
@@ -75,9 +79,8 @@ public class OmniAiReturnedMessageExecutionClient implements AiExecutionGateway 
         if (response.statusCode() == 400 || response.statusCode() == 422) {
             logger.warn(
                     "Omni AI Returned Message request was rejected. "
-                            + "requestId={}, executionId={}, status={}, responseBody={}",
-                    command.requestId(), command.executionId(), response.statusCode(),
-                    response.body());
+                            + "requestId={}, executionId={}, status={}",
+                    command.requestId(), command.executionId(), response.statusCode());
             return failed("AI_EXECUTION_REQUEST_INVALID");
         }
         if (response.statusCode() == 409) {
@@ -101,11 +104,11 @@ public class OmniAiReturnedMessageExecutionClient implements AiExecutionGateway 
     }
 
     private HttpRequest.Builder requestBuilder(URI uri, String tenantId) {
-        return HttpRequest.newBuilder(uri)
+        return apiKey.applyTo(HttpRequest.newBuilder(uri)
                 .timeout(properties.requestTimeout())
                 .header("Content-Type", MEDIA_TYPE_JSON)
                 .header("Accept", MEDIA_TYPE_JSON)
-                .header(TENANT_HEADER, tenantId);
+                .header(TENANT_HEADER, tenantId));
     }
 
     private HttpResponse<String> send(HttpRequest request, String operation) {

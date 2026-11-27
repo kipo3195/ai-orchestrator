@@ -25,6 +25,7 @@ import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessa
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageSelectionRepository.CreateSelection;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageSelection;
 import com.ucware.ai_orchestrator.returnedmessage.infrastructure.config.ReturnedMessageQueryProperties;
+import com.ucware.ai_orchestrator.global.infrastructure.http.ServiceApiKeyProperties;
 
 @Component
 @ConditionalOnProperty(prefix = "returned-message.message-query", name = "base-url")
@@ -44,14 +45,17 @@ public class WebSocketServiceReturnedMessageQueryClient implements ReturnedMessa
     private final ReturnedMessageSelectionRepository selectionRepository;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    private final ServiceApiKeyProperties.ApiKey apiKey;
 
     public WebSocketServiceReturnedMessageQueryClient(
             ReturnedMessageQueryProperties properties,
             ReturnedMessageSelectionRepository selectionRepository,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            ServiceApiKeyProperties apiKeys) {
         this.properties = properties;
         this.selectionRepository = selectionRepository;
         this.objectMapper = objectMapper;
+        this.apiKey = apiKeys.ws();
         this.selectionUri = properties.selectionUri();
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(properties.connectTimeout())
@@ -73,15 +77,13 @@ public class WebSocketServiceReturnedMessageQueryClient implements ReturnedMessa
                         30,
                         1);
 
-        HttpRequest request = HttpRequest.newBuilder(selectionUri)
+        HttpRequest request = apiKey.applyTo(HttpRequest.newBuilder(selectionUri)
                 .timeout(properties.requestTimeout())
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
-                .header("X-Service-Key", "1234")
-                .header("X-Acting-User-Id", query.userId())
+                .header("X-Acting-User-Id", query.userId()))
                 .POST(HttpRequest.BodyPublishers.ofString(writeBody(requestBody)))
                 .build();
-        logger.info("WebSocket Service request URI: {}", request.uri());
 
         long startedAt = System.nanoTime();
         try {
@@ -129,8 +131,8 @@ public class WebSocketServiceReturnedMessageQueryClient implements ReturnedMessa
         }
         if (!SUCCESS_RESULT_CODE.equals(response.resultCode())) {
             logger.warn(
-                    "WebSocket Service message query failed. requestId={}, resultCode={}, resultMessage={}",
-                    query.requestId(), response.resultCode(), response.resultMessage());
+                    "WebSocket Service message query failed. requestId={}, resultCode={}",
+                    query.requestId(), response.resultCode());
             throw new IllegalStateException(
                     "WebSocket Service message query failed with result code "
                             + response.resultCode());

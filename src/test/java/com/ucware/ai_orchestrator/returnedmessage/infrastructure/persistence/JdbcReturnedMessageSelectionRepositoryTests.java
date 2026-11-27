@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.Import;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.ucware.ai_orchestrator.returnedmessage.application.port.ReturnedMessageSelectionRepository.CreateSelection;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageSelection;
 
+@ActiveProfiles("test")
 @JdbcTest
 @Import(JdbcReturnedMessageSelectionRepository.class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)

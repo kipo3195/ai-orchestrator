@@ -12,6 +12,7 @@ import java.util.concurrent.Future;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -31,6 +32,7 @@ import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageRequest;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageStatus;
 import com.ucware.ai_orchestrator.returnedmessage.domain.ReturnedMessageTopicsResult;
 
+@ActiveProfiles("test")
 @JdbcTest
 @Import({JdbcReturnedMessageRepository.class, JdbcReturnedMessageRepositoryTests.Config.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)

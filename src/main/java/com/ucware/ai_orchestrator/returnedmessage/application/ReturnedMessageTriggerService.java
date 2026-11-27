@@ -106,8 +106,8 @@ public class ReturnedMessageTriggerService implements HandleUserReturned {
         } catch (RuntimeException exception) {
             repository.failDetection(
                     lifecycle.tenantId(), lifecycle.requestId(), "MESSAGE_QUERY_FAILED");
-            logger.warn("Returned Message selection failed. requestId={}",
-                    lifecycle.requestId(), exception);
+            logger.warn("Returned Message selection failed. requestId={}, errorType={}",
+                    lifecycle.requestId(), exception.getClass().getSimpleName());
             return resultAfterTransition(lifecycle, created);
         }
 

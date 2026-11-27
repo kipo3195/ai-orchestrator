@@ -1,6 +1,8 @@
 # 001. Policy Persistence Access
 
-Status: Accepted
+## 현재 적용 범위
+
+이 ADR의 Context와 확장 계획은 결정 당시 배경이다. 현재는 JdbcClient 기반 Global/Feature/User 조회가 구현되어 있으며 별도 Tenant 정책 단계는 없다.
 
 ## Context
 
@@ -11,8 +13,6 @@ Policy 데이터베이스는 정책의 Source of Truth이지만, AI Orchestrator
 - Global Policy 조회
 - Feature Policy 전체 조회
 - tenant와 user 식별자를 사용한 User Policy 단건 조회
-
-현재 프로젝트에는 JDBC 또는 JPA 관련 의존성이 없다. Spring에서 사용할 데이터 접근 기술과 timeout 적용 경계를 먼저 정해야 한다.
 
 ## Decision Drivers
 
@@ -121,4 +121,4 @@ Connection pool의 크기만으로 User Policy fallback 동시 실행을 제어�
 ## Related
 
 - [002. User Policy Cache-Aside and Fallback Isolation](002-user-policy-cache-aside-and-fallback-isolation.md)
-- [Policy Immutable Snapshot Refresh](../engineering/001-policy-immutable-snapshot-refresh.md)
+- [Policy Immutable Snapshot Refresh](../features/policy.md)

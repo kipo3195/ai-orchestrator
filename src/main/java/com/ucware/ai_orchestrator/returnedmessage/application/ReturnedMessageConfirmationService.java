@@ -136,8 +136,8 @@ public class ReturnedMessageConfirmationService implements HandleReturnedMessage
         try {
             dispatchResult = executionGateway.start(command(lifecycle, selection));
         } catch (RuntimeException exception) {
-            logger.warn("Returned Message AI dispatch is uncertain. requestId={}, executionId={}",
-                    lifecycle.requestId(), lifecycle.executionId(), exception);
+            logger.warn("Returned Message AI dispatch is uncertain. requestId={}, executionId={}, errorType={}",
+                    lifecycle.requestId(), lifecycle.executionId(), exception.getClass().getSimpleName());
             return;
         }
 
